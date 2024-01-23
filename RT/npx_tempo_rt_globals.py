@@ -9,9 +9,12 @@ class npx_tempo_rt_globals:
     tempowave_tcpip='128.151.171.161'
 
     npx_contacts=384
-    sampling_rate=30000
-    bufferlength=5*sampling_rate
+    npx_sampling_rate=30000
+    npx_bufferlength=5*npx_sampling_rate
     
+    nidaq_channels=8
+    nidaq_sampling_rate=40000
+    nidaq_bufferlength=5*nidaq_sampling_rate
     
 class npx_tempo_msg:
     STOP="STOP"
