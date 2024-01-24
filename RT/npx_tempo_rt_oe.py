@@ -17,10 +17,7 @@ from npx_tempo_rt_globals import npx_tempo_rt_processes,npx_tempo_rt_globals
 hub_connect=False
 
               
-pool=Pool(ncores-1)
-pool.map(npx_data_processor,range(ncores-1))
-       
-    
+
 class PyProcessor:
     nsmp=0
     
