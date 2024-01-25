@@ -2,26 +2,21 @@ import numpy as np
 import oe_pyprocessor
 
 import socket,struct,time
-from threading import Timer,Thread
 
-
-
-import queue
+#import queue
 
 
 # Add additional imports here
-from npx_tempo_rt_client import npx_tempo_rt_client
-from npx_tempo_rt_globals import npx_tempo_rt_processes,npx_tempo_rt_globals
+from npx_rt import npx_rt_client,npx_rt_globals
 
-
-hub_connect=False
+hub_connect=True
 
               
 
 class PyProcessor:
     nsmp=0
     
-    q=queue.Queue()
+    #q=queue.Queue()
     
     seg_cnt=0
     
@@ -50,53 +45,43 @@ class PyProcessor:
         self.num_channels=num_channels
         self.sample_rate=sample_rate
         self.buffer_length=int(self.sample_rate)
+        
+        
         self.flags['trial']=False
         self.flags['acquisition']=False
         
-        if num_channels==npx_tempo_rt_globals.npx_contacts:
+        if num_channels==npx_rt_globals.npx_contacts:
             self.device="npx"
-            
-        elif num_channels == npx_tempo_rt_globals.nidaq_channels:
+        else:
+        #elif num_channels == npx_rt_globals.nidaq_channels:
             self.device="nidaq"
             
         #self.data_buff=np.zeros((self.num_channels,self.buffer_length),np.float32)
         self.seg_cnt=0
         
-        print(f"[Python] {self.device} | {self.sample_rate} sps | {self.num_channels} channels")
+        print(f"[python] {self.device} | {self.sample_rate} sps | {self.num_channels} channels")
 
-        Timer(5,self.simulatetrial).start()
-        """if hub_connect:
-            self.ntc=npx_tempo_rt_client(npx_tempo_rt_processes.oe_npx,
-                                         npx_tempo_rt_processes.hub)"""
-        
+        #Timer(10,self.simulatetrial).start()
+        if hub_connect:
+            if self.device=='npx':
+                self.ntc=npx_rt_client(npx_rt_globals.processes.oe_npx,
+                                         npx_rt_globals.processes.hub)
+                
+            elif self.device=='nidaq':
+                self.ntc=npx_rt_client(npx_rt_globals.processes.oe_nidaq,
+                                         npx_rt_globals.processes.hub)
+            self.ntc.send('connection 1')
+            
     def simulatetrial(self):
-        if self.flags['trial']:
-            self.flags['trial']=False
-            Timer(3,self.simulatetrial).start()
-        else:
+        while self.flags['acquisition']:
+            time.sleep(5)
             self.flags['trial']=True
-            #print ('trial start 000')
-            Timer(1.5,self.simulatetrial).start()
+            time.sleep(2)
+            self.flags['trial']=False
             
-    """def segmentprc(self):
-        q=self.q
-        
-        if not q.empty():
-            #print ('aaa')
-            smp,data=q.get()
-            #print ()
-            nsmp=np.shape(data)[1]
+
             
-            self.data_buff[:,:-nsmp]=self.data_buff[:,nsmp:]
-            self.data_buff[:,-nsmp:]=data
-            
-            print(q.qsize())
-            #if q.qsize()==2:
-            #    print (np.mean(self.data_buff,axis=1))
-            
-        if self.flags['acquisition']:
-            Timer(0.01,self.segmentprc).start()
-  """
+
         
     def process(self, data):
         """
@@ -105,24 +90,18 @@ class PyProcessor:
         Parameters:
         data - N x M numpy array, where N = num_channles, M = num of samples in the buffer.
         """
+        """
         x=np.shape(data)
         nsmp=x[1]
         
-        global ncores
-        global Q
+
         
         if self.flags['trial']:
             self.cnt+=1
-            procId=self.cnt%ncores
-            Q[procId].put( (self.nsmp,data))
-            #self.data_buff[:,:-nsmp]=self.data_buff[:,nsmp:]
-            #self.data_buff[:,-nsmp:]=data[:,:]
-            
-            #Process(target=self.q.put,args=( (self.nsmp,data),)).start()
-#            self.q.put((self.nsmp,data[::5,:]))
-            
+
         self.nsmp+=nsmp 
         #self.data_buff[:2,-nsmp:]=data[:2,:]
+        """
         try:
             #print (f"[Python] smples since acq start: {self.cnt}")\
             pass
@@ -131,13 +110,12 @@ class PyProcessor:
             #pass"""
         
     def start_acquisition(self):
-        self.flags['acquisition']=True
-        Timer(0.1,self.segmentprc).start()
         """ Called at start of acquisition """
-        #pass
-        """if hub_connect:
-            time.sleep(0.5)
-            self.ntc.send("ACQ_START")"""
+        self.flags['acquisition']=True
+        if self.device=='nidaq':
+            self.simulatetrial()
+        if hub_connect:
+            self.ntc.send("acquisition start 1")
         
     
     def stop_acquisition(self):
@@ -145,12 +123,13 @@ class PyProcessor:
         self.flags['acquisition']=False
         while not self.q.empty():
             x=self.q.get()
-        """if hub_connect:
-            self.ntc.send("ACQ_STOP")
-            time.sleep(0.5)"""
+        if hub_connect:
+            self.ntc.send("acquisition stop 1")
+            
 
 
     def handle_ttl_event(self, source_node, channel, sample_number, line, state):
+        pass
         """
         Handle each incoming ttl event.
         
@@ -161,35 +140,28 @@ class PyProcessor:
         line (int): the line on which event was generated (0-255) 
         state (bool): event state True (ON) or False (OFF)
         """
-        if False:
-            if state:
-                
-                if (channel[:3])=="PXI" and (line==12):
-                    if sample_number<10:
-                        md='w'
-                    else:
-                        md='a'
-                    with open('C:/npx_tempo/DEBUG/pxi.log',md) as log_pxi:
-                        log_pxi.write (f'{sample_number}\n')
-                    if hub_connect:
-                        self.ntc.send(f"SYNC {sample_number}")
-                elif (channel[:3]=='Neu') and (line==0):
-                    with open('C:/npx_tempo/DEBUG/npx.log',md) as log_npx:
-                        log_npx.write (f'{sample_number}\n')
-                    if hub_connect:
-                        self.ntc.send(f"SYNC {sample_number}")
-      #  if state:
-            #if source_node[:3]=='PXI':
-                #if line==12:
-                  #  print (f'[Python] {channel,sample_number,line}')
-            #elif source_node[:3]=='Neu':
-                #if line==0:
-                
-                 #   print (f'[Python] {channel,sample_number,line}')
-        #    if source_node[:4]=="PXIe":
-        #        if  line ==0:
         
-       # pass
+        if state:
+            is_nidaq=self.device=='nidaq'
+            is_nidaq_sync= is_nidaq and (line==npx_rt_globals.nidaq_lines['sync'])
+            is_npx  = self.device=='npx'
+            is_sync = is_nidaq_sync or is_npx
+            if is_sync:
+                print (f'[python] sync {self.device} {sample_number}')
+                """"with open(f'C:/npx_tempo/DEBUG/{self.device}.log','a') as flog:
+                    flog.write (f'{sample_number}\n')
+                if hub_connect:
+                    self.ntc.send(f"sync {sample_number}")"""
+            elif is_nidaq:
+                #print (f'[python] nidaq ttl: {line} {sample_number}')
+                lines=npx_rt_globals.nidaq_lines
+                
+                l=[k for k in lines.keys() if lines[k]==line]
+                if (len(l)==1) and (not (line==7)):
+                    print (f"{l[0]} {sample_number}")
+                    self.ntc.send(f"{l[0]} {sample_number}")
+                    
+
 
     def handle_spike(self, source_node, electrode_name, num_channels, num_samples, sample_number, sorted_id, spike_data):
         """
