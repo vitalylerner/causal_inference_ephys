@@ -24,6 +24,6 @@ class npx_rt_gui(npx_rt_client):
 
 if __name__=="__main__":
     ntgui=npx_rt_gui()
-    time.sleep(5)
+    time.sleep(2)
     ntgui.stop()
 

@@ -10,8 +10,7 @@ import socket,struct,time
 from npx_rt import npx_rt_client,npx_rt_globals
 
 hub_connect=True
-
-              
+             
 
 class PyProcessor:
     nsmp=0
@@ -44,7 +43,7 @@ class PyProcessor:
         
         self.num_channels=num_channels
         self.sample_rate=sample_rate
-        self.buffer_length=int(self.sample_rate)
+        #self.buffer_length=int(self.sample_rate)
         
         
         self.flags['trial']=False
@@ -90,7 +89,7 @@ class PyProcessor:
         Parameters:
         data - N x M numpy array, where N = num_channles, M = num of samples in the buffer.
         """
-        """
+        
         x=np.shape(data)
         nsmp=x[1]
         
@@ -100,6 +99,10 @@ class PyProcessor:
             self.cnt+=1
 
         self.nsmp+=nsmp 
+        if self.device=='npx':
+            M=data[:10,:]
+            if hub_connect:
+                self.ntc.send_matrix(M)
         #self.data_buff[:2,-nsmp:]=data[:2,:]
         """
         try:
@@ -112,8 +115,8 @@ class PyProcessor:
     def start_acquisition(self):
         """ Called at start of acquisition """
         self.flags['acquisition']=True
-        if self.device=='nidaq':
-            self.simulatetrial()
+        """if self.device=='nidaq':
+            self.simulatetrial()"""
         if hub_connect:
             self.ntc.send("acquisition start 1")
         
@@ -121,10 +124,10 @@ class PyProcessor:
     def stop_acquisition(self):
         """ Called when acquisition is stopped """
         self.flags['acquisition']=False
-        while not self.q.empty():
-            x=self.q.get()
-        if hub_connect:
-            self.ntc.send("acquisition stop 1")
+        #while not self.q.empty():
+        #    x=self.q.get()
+        """if hub_connect:
+            self.ntc.send("acquisition stop 1")"""
             
 
 
@@ -147,11 +150,11 @@ class PyProcessor:
             is_npx  = self.device=='npx'
             is_sync = is_nidaq_sync or is_npx
             if is_sync:
-                print (f'[python] sync {self.device} {sample_number}')
-                """"with open(f'C:/npx_tempo/DEBUG/{self.device}.log','a') as flog:
-                    flog.write (f'{sample_number}\n')
+                #print (f'[python] sync {self.device} {sample_number}')
+
+                    
                 if hub_connect:
-                    self.ntc.send(f"sync {sample_number}")"""
+                    self.ntc.send(f"sync {sample_number}")
             elif is_nidaq:
                 #print (f'[python] nidaq ttl: {line} {sample_number}')
                 lines=npx_rt_globals.nidaq_lines
@@ -159,7 +162,8 @@ class PyProcessor:
                 l=[k for k in lines.keys() if lines[k]==line]
                 if (len(l)==1) and (not (line==7)):
                     print (f"{l[0]} {sample_number}")
-                    self.ntc.send(f"{l[0]} {sample_number}")
+                    if hub_connect:
+                        self.ntc.send(f"{l[0]} {sample_number}")
                     
 
 
