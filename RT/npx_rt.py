@@ -3,7 +3,7 @@
 ***      2024                        *** 
 *** Neuropixels real time analysis   ***
 *************************************"""
-import socket,struct
+import socket,struct,json
 import numpy as np
 
 
@@ -34,6 +34,12 @@ class npx_rt_globals:
 
 
 class npx_rt_client:
+    """
+    General class of neuropixel tcpip communication client.
+    
+    Inherited by npx, nidaq,tempow, gui .
+    """
+    
     myid=-1
     serverid=-1
     port=10000
@@ -41,8 +47,9 @@ class npx_rt_client:
     def __init__(self,myid:int,serverid:int):
         self.myid=myid
         self.serverid=serverid
-        
+
     def send(self,MSG):
+        """Send a message, no request."""
         MSGl=len(MSG)
         s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         s.connect((npx_rt_globals.tempowave_tcpip,self.serverid))
@@ -54,8 +61,43 @@ class npx_rt_client:
         s.send(bytes(MSG,'utf-8'))
         s.close()
         
+    def request(self,query):
+        """Send request and returns the response.""" 
+        # protocol:
+        #==============================================
+        # order | send/recv | content  | type | bytes | 
+        #----------------------------------------------
+        #   1   |   send   | procId   |  int  |  4    |
+        #   2   |   send   |  L       |  int  |  4    |
+        #   3   |   send   |  query   |  str  |  L    |
+        #   4   |   recv   |  L2      |  int  |  4    |
+        #   5   |   recv   |  response|  str  |  L2   |
+        #==============================================
+        L=len(query)
+        s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        s.connect((npx_rt_globals.tempowave_tcpip,self.serverid))
+        
+        #1.send this client process id
+        s.send(struct.pack("i",self.myid))
+        #2. send number of bytes of the query
+        s.send(struct.pack("i",L))
+        #3.send the message
+        s.send(bytes(query,'utf-8'))
+        buff=s.recv(4)
+        #print ('debug',buff)
+        #4. receive length of the response
+        L2=struct.unpack("i",buff)[0]
+        #5. receive the response
+        response_txt=s.recv(L2).decode('utf-8')
+        try: 
+            response_dict=json.loads(response_txt)
+            return response_dict
+        except json.JSONDecodeError:
+            return response_txt
+        
+               
     def send_matrix(self,data):
-        #sends 2d numpy array:
+        """Send 2d numpy array, no request."""
         # protocol:
         #==============================================
         # order | content  |  type  | bytes           | 
@@ -97,11 +139,19 @@ class npx_rt_client:
         s.close()
         
 if __name__=="__main__":
+    #this block is used for debugging only
+ 
+    #test connection
+    #pretend to be nidaq
     n=npx_rt_client(npx_rt_globals.processes.oe_nidaq,npx_rt_globals.processes.hub)
-    n.send("Hello, World!")
-    #n.send("Hello2")
-    A=np.reshape(np.arange(100).astype(float),(4,25))-0.5
     
-    n.send_matrix(A)
-    #n2=npx_tempo_rt_client(npx_tempo_rt_processes.gui)
-    #n2.send("STOP")    
+    #test sending string
+    #n.send("Hello, World!")
+    
+    #test sending matrix 4x25
+    #A=np.reshape(np.arange(100).astype(float),(4,25))-0.5
+    #n.send_matrix(A)
+    
+    #test requesting status
+    x=n.request("status")   
+    

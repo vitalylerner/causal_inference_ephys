@@ -132,7 +132,6 @@ class PyProcessor:
 
 
     def handle_ttl_event(self, source_node, channel, sample_number, line, state):
-        pass
         """
         Handle each incoming ttl event.
         
@@ -144,17 +143,21 @@ class PyProcessor:
         state (bool): event state True (ON) or False (OFF)
         """
         
-        if state:
+        if state: #if the event is rising edge of some TTL
+            # various flags
+            # the device is nidaq
             is_nidaq=self.device=='nidaq'
-            is_nidaq_sync= is_nidaq and (line==npx_rt_globals.nidaq_lines['sync'])
+            # the event is sync in nidaq
+            is_nidaq_sync= is_nidaq and (line==npx_rt_globals.nidaq_lines['sync']) 
+            # the devoce is npx
             is_npx  = self.device=='npx'
+            # the event is sync
             is_sync = is_nidaq_sync or is_npx
-            if is_sync:
-                #print (f'[python] sync {self.device} {sample_number}')
-
-                    
+            if is_sync:                   
                 if hub_connect:
                     self.ntc.send(f"sync {sample_number}")
+                    
+                    
             elif is_nidaq:
                 #print (f'[python] nidaq ttl: {line} {sample_number}')
                 lines=npx_rt_globals.nidaq_lines
