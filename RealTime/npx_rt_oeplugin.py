@@ -100,7 +100,7 @@ class PyProcessor:
 
         self.nsmp+=nsmp 
         if self.device=='npx':
-            M=data[:10,:]
+            M=data[:npx_rt_globals.npx_rt_channels,:]
             if hub_connect:
                 self.ntc.send_matrix(M)
         #self.data_buff[:2,-nsmp:]=data[:2,:]
@@ -192,8 +192,12 @@ class PyProcessor:
         Parameters:
         recording_dir (str): recording directory to be used by future record nodes.
         """
-        pass
+        if self.device=='nidaq':
+            if hub_connect:
+                self.ntc.send("recording start 1")
     
     def stop_recording(self):
         """ Called when recording stops """
-        pass
+        if self.device=='nidaq':
+            if hub_connect:
+                self.ntc.send("recording stop 1")

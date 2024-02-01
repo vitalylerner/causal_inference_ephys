@@ -12,7 +12,9 @@ class npx_rt_globals:
 
     npx_contacts=384
     npx_sampling_rate=30000
-    npx_bufferlength=5*npx_sampling_rate
+    npx_bufferlength=8*npx_sampling_rate
+    npx_rt_channels=16
+    
     
     nidaq_channels=8
     nidaq_sampling_rate=40000
@@ -96,7 +98,7 @@ class npx_rt_client:
             return response_txt
         
                
-    def send_matrix(self,data):
+    def send_matrix(self,data,p:int=0):
         """Send 2d numpy array, no request."""
         # protocol:
         #==============================================
@@ -107,7 +109,8 @@ class npx_rt_client:
         #   3   | "matrix" |  str   |  6              |
         #   4   |   rows   |  int   |  4              |
         #   5   |   cols   |  int   |  4              |
-        #   6   |   data   |  float | 4 × rows × cols |
+        #   6   |   p      |  int   |  4              |   
+        #   7   |   data   |  float | 4 × rows × cols |
         #==============================================
 
         rows=data.shape[0]
@@ -133,7 +136,9 @@ class npx_rt_client:
         s.send(struct.pack("i",rows))
         #5. send number of columns
         s.send(struct.pack("i",cols))
-        #6. send the data
+        #6. send the additional parameter
+        s.send(struct.pack("i",p))
+        #7. send the data
         s.send(data_bytes)
         #disconnect   
         s.close()
