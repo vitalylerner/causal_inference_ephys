@@ -94,7 +94,7 @@ class npx_rt_gui(npx_rt_client,Tk):
             self.n_indicator_lbl[i].place(x=j*200,y=40)
             self.n_indicator_val[i].place(x=j*200+100,y=40)
         self.cmdClose=Button(self,text="stop",command=self.stop)
-        self.cmdClose.place(x=550,y=50)
+        self.cmdClose.place(x=550,y=5)
     def stop(self):
         """Stop the socket and stop the hub."""
         self.send("stop")
