@@ -15,8 +15,10 @@ import pandas as pd
 import logging,os,json
 from  newloadmat import loadmat
 from datetime import datetime
+import pickle
 
-
+from bokeh.plotting import  figure,show,save,output_file
+from bokeh.layouts import row,column
 
 class npx_tempo:
     """
@@ -338,14 +340,60 @@ class npx_tempo:
         self.logger.info(f"""{len(raster['good'])} good units, {len(raster['mua'])} mua """)
         return raster
     
-    def build_trig_raster(self):
+    def build_trig_raster(self,recID:int):
         """
         Build the main spike rasters for further analysis.
         
         Based on the continuous rasters, aligned events, and synchronization
         data, build raster plots for each unit (good and mua)
+        
+        Builds for a specific recording
+        
         """
-        pass
+        raster=self.load_cont_rasters()
+        oe_events=self.oe_events[recID].copy()
+        
+        #spikes_t0=self.oebin['']
+        oe_t0=0
+        
+        ntrials=len(oe_events)
+        
+        nidaq_sampling_rate=40000
+        npx_sampling_rate=30000
+        
+        samples_pre=2*npx_sampling_rate
+        samples_post=3*npx_sampling_rate
+        
+        for group in ['good','mua']:
+            trig_raster={}
+            trig_raster[group]={}
+            units=raster[group].keys()
+            for unit in units:
+                trig_raster[group][unit]=[[] for i in range(ntrials)]
+                
+            for iTrial in range(ntrials):
+                vstart_nidaq_index=oe_events.loc[iTrial,'stim_start']
+                vstart_time=vstart_nidaq_index*1.0/nidaq_sampling_rate
+                vstart_npx_index=int(vstart_time*npx_sampling_rate)
+                
+                slice_start_acq=vstart_npx_index-samples_pre
+                slice_n0_acq=vstart_npx_index
+                slice_end_acq=vstart_npx_index+samples_post
+                
+                slice_start_phy=slice_start_acq
+                slice_n0_phy=slice_n0_acq
+                slice_end_phy=slice_end_acq
+                
+                
+                spikes={}
+                
+                for unit in units:
+                    trig_raster[group][unit][iTrial]=[round((s-slice_n0_phy)*1.0/npx_sampling_rate,3) for s in raster[group][unit] if (s>slice_start_phy) and (s<=slice_end_phy)]
+        return trig_raster
+            
+        #print (oe_events)
+        
+        
     
     def logging_start(self):
         """Init logging procedures."""
@@ -387,9 +435,26 @@ if __name__=="__main__":
         
         
     PATH="Z:/Data/MOOG/"
-    C=npx_tempo(mainpath=PATH,subjectID=42,subjectName='Dazs',sessionID=461)
-    #ok=C.align_tempo_oe_events(1)
-    r=C.load_cont_rasters()
-
+    """C=npx_tempo(mainpath=PATH,subjectID=42,subjectName='Dazs',sessionID=461)
     
-    #print (C.path_oe_oebin(1))
+    raster=C.build_trig_raster(1)
+    with open('raster.p','wb') as h:
+        pickle.dump(raster,h)"""
+    
+    with open('raster.p','rb') as h:
+        raster=pickle.load(h)
+    #f=[None for i in [1,2]]
+    f=figure(width=600,height=200)
+    #f[1]=figure(width=600,height=600)
+    group='good'
+    units=list(raster[group].keys())
+    nTrials=len(raster[group][units[0]])
+    
+    for iunit,unit in enumerate(units):
+        output_file(f'Figures/raster_{group}_unit{unit}.html')
+        for iTrial in range(nTrials):
+            spike_times=np.array(raster[group][unit][iTrial])
+            f.scatter(spike_times,0*spike_times+iTrial)
+        save(f)
+
+
