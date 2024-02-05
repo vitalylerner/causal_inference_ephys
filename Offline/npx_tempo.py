@@ -363,9 +363,9 @@ class npx_tempo:
         
         samples_pre=2*npx_sampling_rate
         samples_post=3*npx_sampling_rate
-        
+        trig_raster={}
         for group in ['good','mua']:
-            trig_raster={}
+            
             trig_raster[group]={}
             units=raster[group].keys()
             for unit in units:
@@ -435,26 +435,29 @@ if __name__=="__main__":
         
         
     PATH="Z:/Data/MOOG/"
-    """C=npx_tempo(mainpath=PATH,subjectID=42,subjectName='Dazs',sessionID=461)
-    
-    raster=C.build_trig_raster(1)
-    with open('raster.p','wb') as h:
-        pickle.dump(raster,h)"""
-    
-    with open('raster.p','rb') as h:
-        raster=pickle.load(h)
+    if False:
+        C=npx_tempo(mainpath=PATH,subjectID=42,subjectName='Dazs',sessionID=461)
+        
+        raster=C.build_trig_raster(1)
+        with open('raster.p','wb') as h:
+            pickle.dump(raster,h)
+    else:
+        with open('raster.p','rb') as h:
+            raster=pickle.load(h)
     #f=[None for i in [1,2]]
-    f=figure(width=600,height=200)
-    #f[1]=figure(width=600,height=600)
-    group='good'
-    units=list(raster[group].keys())
-    nTrials=len(raster[group][units[0]])
-    
-    for iunit,unit in enumerate(units):
-        output_file(f'Figures/raster_{group}_unit{unit}.html')
-        for iTrial in range(nTrials):
-            spike_times=np.array(raster[group][unit][iTrial])
-            f.scatter(spike_times,0*spike_times+iTrial)
-        save(f)
+    if True:
+        
+        #f[1]=figure(width=600,height=600)
+        for group in ['good','mua']:
+            units=list(raster[group].keys())
+            nTrials=len(raster[group][units[0]])
+            
+            for iunit,unit in enumerate(units):
+                output_file(f'Figures/raster_{group}_unit{unit}.html')
+                f=figure(width=600,height=200)
+                for iTrial in range(nTrials):
+                    spike_times=np.array(raster[group][unit][iTrial])
+                    f.scatter(spike_times,0*spike_times+iTrial)
+                save(f)
 
 
