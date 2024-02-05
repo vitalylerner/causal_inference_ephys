@@ -1,3 +1,7 @@
+#Vitaly Lerner 2024
+# Neuropixel Real Time Analysis
+# TEMPO module
+
 import argparse
 import socket,struct,sys
 
