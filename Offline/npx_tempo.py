@@ -37,9 +37,10 @@ class npx_tempo:
              'BROKE_FIX':32,'FRAME':128}
     def __init__(self,**kwargs):
         bOK=False
-        logging.info("""\n ***** Vitaly Lerner, January 2024 ****
+        self.logging_start()
+        self.logger.info("""\n ***** Vitaly Lerner, January 2024 ****
                      ** Offline preprocessing of ephys data recorded continuously **""")
-        logging.warning("""Currently the filter by "success" is applied
+        self.logger.warning("""Currently the filter by "success" is applied
                         to events recorded in OpenEphys, this is wrong generally It works for non-discrimination tasks,
                         but must be replaced with a filter by BROKE_FIX. """)
 
@@ -50,10 +51,10 @@ class npx_tempo:
             self.sessionID      = kwargs['sessionID']
             self.mainpath       = kwargs['mainpath']
             for var in kwargs.keys():
-                logging.info(f"""{var}\t{kwargs[var]}""")
+                self.logger.info(f"""{var}\t{kwargs[var]}""")
             bOK=True
         except:
-            logging.error("not enough context information provided")
+            self.logger.error("not enough context information provided")
 
         #Count OpenEphys Recordings,
         #save recIDs to recid_list
@@ -119,12 +120,12 @@ class npx_tempo:
         oe_folder=self.mainpath+f"{self.subjectName}/OpenEphys/m{self.subjectID}c{self.sessionID}/"
         self.recid_list=sorted([ int(f.name[9:]) for f in os.scandir(oe_folder) if (f.is_dir() and f.name[:9]=='recording')])
         if len(self.recid_list)<1:
-            logging.error ("No OpenEphys recordings found")
+            self.logger.error ("No OpenEphys recordings found")
             bOK=False
         else:
             self.oebin     = [None for r in range(max(self.recid_list)+1)]
             self.oe_events = [  {} for r in range(max(self.recid_list)+1)]
-            logging.info(f"E recordings: {self.recid_list}")
+            self.logger.info(f"E recordings: {self.recid_list}")
         return bOK
         
 
@@ -174,7 +175,7 @@ class npx_tempo:
                     w=s.split(':')
                     n0=int(w[1])
                     self.oebin[recID]['continuous'][0]['starttime']=n0
-            logging.info(f"""recording{recID}:\t{dev['pname']}\t{n0}""")
+            self.logger.info(f"""recording{recID}:\t{dev['pname']}\t{n0}""")
         return bOK
 
     #***     SECTION 2                                                      ***#
@@ -222,9 +223,9 @@ class npx_tempo:
                     success=0
                 else:
                     success=sum(A['success'])
-                logging.info(f"""recording{recID}:\t{len(A):4} logged\t{success:4} success """)
+                self.logger.info(f"""recording{recID}:\t{len(A):4} logged\t{success:4} success """)
             except:
-                logging.error(f"""recording{recID}""")
+                self.logger.error(f"""recording{recID}""")
                 bOK=False
         return bOK
     
@@ -264,7 +265,7 @@ class npx_tempo:
         #later: replace by broke_fix
         oe_events=oe_events[oe_events['success']]
 
-        logging.debug(f"""alignment of recording{recID} started""")
+        self.logger.debug(f"""alignment of recording{recID} started""")
         bOK=True
         
         #validation step 1: count the rows of "good data"
@@ -277,9 +278,9 @@ class npx_tempo:
         #i would try to compare the trial_start, but for some trials the
         #latency is more than 1s and then there is no trial_start event
         if ~bOK:
-            logging.error('Cannot align trials: not the same amount')
+            self.logger.error('Cannot align trials: not the same amount')
         if bOK:
-            logging.debug('Same amount of trials: OK')
+            self.logger.debug('Same amount of trials: OK')
             oe_t0=np.array(oe_events['stim_start'])
             tempo_t0=np.array(tempo_events['stim_start']).astype(int)
             
@@ -295,10 +296,10 @@ class npx_tempo:
                 diff=abs(oe_col-tempo_col)
                 bOK=sum(diff>0.5)==0
                 if bOK:
-                    logging.debug(f'Maximal latency between Tempo and OpenEphys is {np.max(diff)}ms (htb time resolution is 1ms)')
+                    self.logger.debug(f'Maximal latency between Tempo and OpenEphys is {np.max(diff)}ms (htb time resolution is 1ms)')
                 else:
                     badtrials=list(np.where(diff)[0])
-                    logging.error(f"These trials require attention: {badtrials}")
+                    self.logger.error(f"These trials require attention: {badtrials}")
         return bOK
                 
             
@@ -320,6 +321,7 @@ class npx_tempo:
             raster['good'][624] is list of spike times of unit 624
         """
         pth=self.path_phy()
+        self.logger.info("""Loading rasters from phy started: """)
         spike_clusters=np.squeeze(np.load(pth+'spike_clusters.npy'))
         spike_times=np.squeeze(np.load(pth+'spike_times.npy'))
         spikes=pd.DataFrame({'cluster':spike_clusters,'time':spike_times})
@@ -333,7 +335,9 @@ class npx_tempo:
             #print (len(clusters[group]))
             for c in clusters[group]:
                 raster[group][c]=spikes[spikes['cluster']==c]['time']
+        self.logger.info(f"""{len(raster['good'])} good units, {len(raster['mua'])} mua """)
         return raster
+    
     def build_trig_raster(self):
         """
         Build the main spike rasters for further analysis.
@@ -342,20 +346,50 @@ class npx_tempo:
         data, build raster plots for each unit (good and mua)
         """
         pass
-PATH="Z:/Data/MOOG/"
-
+    
+    def logging_start(self):
+        """Init logging procedures."""
+        now = datetime.now() # current date and ti
+        nowstr=now.strftime("%Y%m%d_%H%M%S")
+        
+        lg=logging.getLogger('npx_tempo')
+        lg.setLevel(logging.DEBUG)
+        frmt=logging.Formatter('%(filename)s:%(lineno)s \t  %(funcName)s \t %(levelname)s \t %(message)s')
+                
+        fh=logging.FileHandler('LOGS/npx_tempo'+nowstr+'.log')
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(frmt)        
+        lg.addHandler(fh)
+        
+        
+        ch=logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        ch.setFormatter(frmt)
+        lg.addHandler(ch)
+        
+        
+        lg.info('started')
+        self.logger=lg
+        self.logging_h={'fh':fh,'ch':ch}
+        
+    def logging_end(self):
+        self.logger.removeHandler(self.logging_h['fh'])
+        self.logger.removeHandler(self.logging_h['ch'])
+        
 if __name__=="__main__":
+    #logging_start()
+    #if True:
+    """Init logging procedures."""
     now = datetime.now() # current date and ti
     nowstr=now.strftime("%Y%m%d_%H%M%S")
-    logging.basicConfig(level=logging.DEBUG,
-        handlers=[
-                logging.FileHandler('LOGS/npx_tempo'+nowstr+'.log'),
-                logging.StreamHandler()
-                ],
-         format='%(filename)s:%(lineno)s \t  %(funcName)s \t %(levelname)s \t %(message)s')
-    logging.info('started')
     
     
-    C=npx_tempo(mainpath=PATH,subjectID=42,subjectName='Dazs',sessionID=454)
-    ok=C.align_tempo_oe_events(6)
+        
+        
+    PATH="Z:/Data/MOOG/"
+    C=npx_tempo(mainpath=PATH,subjectID=42,subjectName='Dazs',sessionID=461)
+    #ok=C.align_tempo_oe_events(1)
+    r=C.load_cont_rasters()
+
+    
     #print (C.path_oe_oebin(1))
