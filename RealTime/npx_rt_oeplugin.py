@@ -89,28 +89,19 @@ class PyProcessor:
         Parameters:
         data - N x M numpy array, where N = num_channles, M = num of samples in the buffer.
         """
-        
-        x=np.shape(data)
-        nsmp=x[1]
-        
+        if npx_rt_globals.send_data and (self.device=='npx'):
+            x=np.shape(data)
+            nsmp=x[1]
 
-        
-        if self.flags['trial']:
-            self.cnt+=1
-
-        self.nsmp+=nsmp 
-        if self.device=='npx':
+            if self.flags['trial']:
+                self.cnt+=1
+    
+            self.nsmp+=nsmp 
+            
             M=data[:npx_rt_globals.npx_rt_channels,:]
             if hub_connect:
                 self.ntc.send_matrix(M)
-        #self.data_buff[:2,-nsmp:]=data[:2,:]
-        """
-        try:
-            #print (f"[Python] smples since acq start: {self.cnt}")\
-            pass
-        except:
-            print ('[Python Error]')
-            #pass"""
+
         
     def start_acquisition(self):
         """ Called at start of acquisition """

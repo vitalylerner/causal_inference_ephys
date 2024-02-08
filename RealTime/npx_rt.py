@@ -13,12 +13,15 @@ class npx_rt_globals:
     npx_contacts=384
     npx_sampling_rate=30000
     npx_bufferlength=8*npx_sampling_rate
-    npx_rt_channels=16
+    npx_rt_channels=2
     
     
     nidaq_channels=8
     nidaq_sampling_rate=40000
     nidaq_bufferlength=5*nidaq_sampling_rate
+    
+    send_data = False
+    
     class processes:
         hub     = 10000     # main hub of rt analysis,  TEMPOWAVE
         gui     = 10001     # GUI,                      TEMPOWAVE
