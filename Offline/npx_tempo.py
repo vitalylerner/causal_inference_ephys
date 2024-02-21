@@ -97,6 +97,7 @@ class npx_tempo:
         """Path of the a folder tree created by OpenEphys for a specific recording ."""
         return self.mainpath+f"{self.subjectName}/OpenEphys/m{self.subjectID}c{self.sessionID}/recording{recID}/"
     
+
     def path_oe_oebin(self,recID):
         """Path of the .oebin file (xml with the structure)."""
         x=self.path_oe_root(recID)
@@ -113,6 +114,11 @@ class npx_tempo:
         """Path of the sample numbers associated with the events."""
         x=self.path_oe_events_folder(recID)
         return x+'sample_numbers.npy'
+    def path_sync(self):
+        """Path of the synchronization files."""
+        return self.mainpath+f"{self.subjectName}/OpenEphys/m{self.subjectID}c{self.sessionID}/SYNC/"
+        
+    
     def path_phy(self):
         """Path of the kilosort-created, phy-curated unit-spikes files."""
         return self.mainpath+f"{self.subjectName}/OpenEphys/m{self.subjectID}c{self.sessionID}/output/"
@@ -129,20 +135,52 @@ class npx_tempo:
             self.oe_events = [  {} for r in range(max(self.recid_list)+1)]
             self.logger.info(f"E recordings: {self.recid_list}")
         return bOK
-        
-
-    #*** Path building Level 1                                                      ***#
-    #*** here the path constructors rely on the OpenEphys structure files           ***#
-    #*** Particularly, folder names are given by OpenEphys differently each session ***#
-    def path_oe_events_folder(self,recID):
+    
+    def path_oe_contfile(self,recID:int,devID:int):
+        """Path to the continuos (data) file"""
+        x=self.path_oe_root(recID)+'continuous/'
+        x+=self.oebin[recID]['continuous'][devID]['folder_name']
+        x+='continous.dat'
+        return x
+    def path_oe_contfolder(self,recID:int,devID:int):
+        """Path to the continuos (data) file"""
+        x=self.path_oe_root(recID)+'continuous/'
+        x+=self.oebin[recID]['continuous'][devID]['folder_name']
+        #x+='continous.dat'
+        return x
+    
+    def path_oe_events_folder(self,recID:int):
         """TBC."""
+        devID=self.dev_nidaq(recID)
+        #print (devID)
         x = self.path_oe_root(recID)+'events/'
-        x += self.oebin[recID]['continuous'][0]['folder_name']
-        x += 'TTL/'
+        x += self.oebin[recID]['continuous'][devID]['folder_name']
+        x += '/TTL/'
         return x
 
 
-
+    def dev_ap(self,recID:int):
+        DEV=self.oebin[recID]['continuous']
+        l=[i for i in range(len(DEV)) if DEV[i]['stream_name']=='ProbeA-AP']
+        if len(l)>0:
+            return l[0]
+        else:
+            return None
+    def dev_lfp(self,recID:int):
+        DEV=self.oebin[recID]['continuous']
+        l=[i for i in range(len(DEV)) if DEV[i]['stream_name']=='ProbeA-LFP']
+        if len(l)>0:
+            return l[0]
+        else:
+            return None
+    def dev_nidaq(self,recID:int):
+        DEV=self.oebin[recID]['continuous']
+        l=[i for i in range(len(DEV)) if DEV[i]['stream_name'][:4]=='PXIe']
+        if len(l)>0:
+            return l[0]
+        else:
+            return None
+    
     def oe_oebin_bulk_load(self):
         """Load OpenEphys native JSON file with description of structure of the rest of the files.
         
@@ -164,20 +202,21 @@ class npx_tempo:
                 S=f.readlines()
                             
             self.oebin[recID]['starttime']=int(S[0].split(":")[1])
-            dev={}
-            dev['pname'] = self.oebin[recID]['continuous'][0]['source_processor_name']
-            dev['pid']   = self.oebin[recID]['continuous'][0]['source_processor_id']
-            dev['sname'] = self.oebin[recID]['continuous'][0]['stream_name']
-            dev['sync_name']=f"""{dev['pname']} ({dev['pid']}) - {dev['sname']}"""
-            dev['namechar']=len(dev['sync_name'])
-            for l in S[1:]:
-                devname=l[nopening:nopening+dev['namechar']]
-                if devname==dev['sync_name']:
-                    s=l[nopening+dev['namechar']+3:]
-                    w=s.split(':')
-                    n0=int(w[1])
-                    self.oebin[recID]['continuous'][0]['starttime']=n0
-            self.logger.info(f"""recording{recID}:\t{dev['pname']}\t{n0}""")
+            for idev in range(3): #3 devices: NPX-AP, NPX-LFP, NIDAQ
+                dev={}
+                dev['pname'] = self.oebin[recID]['continuous'][idev]['source_processor_name']
+                dev['pid']   = self.oebin[recID]['continuous'][idev]['source_processor_id']
+                dev['sname'] = self.oebin[recID]['continuous'][idev]['stream_name']
+                dev['sync_name']=f"""{dev['pname']} ({dev['pid']}) - {dev['sname']}"""
+                dev['namechar']=len(dev['sync_name'])
+                for l in S[1:]:
+                    devname=l[nopening:nopening+dev['namechar']]
+                    if devname==dev['sync_name']:
+                        s=l[nopening+dev['namechar']+3:]
+                        w=s.split(':')
+                        n0=int(w[1])
+                        self.oebin[recID]['continuous'][idev]['starttime']=n0
+                self.logger.info(f"""recording{recID}:\t{dev['pname']}\t{n0}""")
         return bOK
 
     #***     SECTION 2                                                      ***#
@@ -239,7 +278,7 @@ class npx_tempo:
         event_data=a['good_data']['event_data']
         #bad_event_data=a['bad_data']['event_data']
         nTrials=event_data.shape[1]
-
+        
         #build table 1: essencial for comparison and alignment with
         #openphys data
         A=[]
@@ -259,6 +298,41 @@ class npx_tempo:
         A=pd.DataFrame(A)
         return A
     
+    def build_stitch_time(self):
+        NDEV=3
+        RecID=self.recid_list
+        #Time_Stamps   =[[] for i in range(NDEV)]
+        #Sample_Numbers=[[] for i in range(NDEV)]
+        T=[None for i in range(NDEV)]
+        self.logger.info(f"""stitching time scale started""")
+        self.logger.info(f"""devices: AP:{self.dev_ap(RecID[0])}  LFP:{self.dev_lfp(RecID[0])}   NIDAQ:{self.dev_nidaq(RecID[0])} """)
+        for devID in [1]:#range(NDEV):
+            Time_Stamps=[]
+            Sample_Numbers=[]
+            for recID in RecID:
+            #self.oebin[recId]
+            
+                self.logger.info(f"""recID={recID} devID={devID} """)
+
+                p=self.path_oe_contfolder(recID,devID)
+                Time_Stamps+=[np.load(p+'timestamps.npy')]
+                Sample_Numbers+=[np.load(p+'sample_numbers.npy')]
+                print (recID)
+                #print (ts[:20])
+                #ts=(ts*1000000).astype(np.uint32)
+                #sn=np.load(p+'sample_numbers.npy').astype(np.uint32)
+                #print (ts[:20])
+                
+                #Time_Stamps[devID]   =np.hstack([Time_Stamps[devID],np.load(p+'timestamps.npy')])
+                #Sample_Numbers[devID]=np.hstack([Sample_Numbers[devID],np.load(p+'sample_numbers.npy')])
+            Time_Stamps=np.hstack(Time_Stamps)
+            Sample_Numbers=np.hstack(Sample_Numbers)
+            npz_path=self.path_sync()+f'SyncLUT_{devID}.npz'
+            np.savez_compressed(npz_path,Time_Stamps=Time_Stamps,Sample_Number=Sample_Numbers)
+            del(Time_Stamps)
+            del(Sample_Numbers)
+
+        
     def align_tempo_oe_events(self,recID):
         """Align TEMPO and OpenEphys-recorded events."""
         tempo_events=self.tempo_events_load(recID).copy()
@@ -410,19 +484,19 @@ class npx_tempo:
         lg.addHandler(fh)
         
         
-        ch=logging.StreamHandler()
+        """ch=logging.StreamHandler()
         ch.setLevel(logging.DEBUG)
         ch.setFormatter(frmt)
-        lg.addHandler(ch)
+        lg.addHandler(ch)"""
         
         
         lg.info('started')
         self.logger=lg
-        self.logging_h={'fh':fh,'ch':ch}
+        self.logging_h={'fh':fh}#,'ch':ch}
         
     def logging_end(self):
         self.logger.removeHandler(self.logging_h['fh'])
-        self.logger.removeHandler(self.logging_h['ch'])
+        #self.logger.removeHandler(self.logging_h['ch'])
         
 if __name__=="__main__":
     #logging_start()
@@ -435,6 +509,17 @@ if __name__=="__main__":
         
         
     PATH="Z:/Data/MOOG/"
+    
+    #if True:
+    for sID in [461,485]:
+        C=npx_tempo(mainpath=PATH,subjectID=42,subjectName='Dazs',sessionID=sID)
+
+    
+    #print (C.dev_ap(1))
+    #print (C.dev_lfp(1))
+    #print (C.dev_nidaq(1))
+        C.build_stitch_time()        
+    """
     if False:
         C=npx_tempo(mainpath=PATH,subjectID=42,subjectName='Dazs',sessionID=461)
         
@@ -445,7 +530,7 @@ if __name__=="__main__":
         with open('raster.p','rb') as h:
             raster=pickle.load(h)
     #f=[None for i in [1,2]]
-    if True:
+    if False:
         
         #f[1]=figure(width=600,height=600)
         for group in ['good','mua']:
@@ -459,5 +544,5 @@ if __name__=="__main__":
                     spike_times=np.array(raster[group][unit][iTrial])
                     f.scatter(spike_times,0*spike_times+iTrial)
                 save(f)
-
+    """
 
