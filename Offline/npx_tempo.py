@@ -37,6 +37,7 @@ class npx_tempo:
     codes  ={'trial_start':1,'stim_start':4,'stim_end':5,'trial_end':15,'success':12,'broke_fix':10}
     rtcodes={'TRIAL_START':1,'STIM_START':2,'STIM_END':4,'TRIAL_END':8,'SUCCESS':16,
              'BROKE_FIX':32,'FRAME':128}
+    sync_tables=None
     def __init__(self,**kwargs):
         bOK=False
         self.logging_start()
@@ -72,6 +73,15 @@ class npx_tempo:
         #based on TTL events
         if bOK:
             bOK=self.oe_ttl_bulk_load()
+        
+        if bOK:
+            NDEV=3
+            self.sync_tables=[None for i in range(NDEV)]
+            for idev in range(NDEV):
+                s_path=self.path_sync_file(idev)
+                with np.load(s_path) as D:
+                    self.sync_tables[idev]={'sample_numbers':D['sample_numbers'],'timestamps':D['time_stamps']}
+                
             
                     
     #***     SECTION 1                                                      ***#
@@ -114,11 +124,23 @@ class npx_tempo:
         """Path of the sample numbers associated with the events."""
         x=self.path_oe_events_folder(recID)
         return x+'sample_numbers.npy'
-    def path_sync(self):
+    
+    def path_sync_folder(self):
         """Path of the synchronization files."""
         return self.mainpath+f"{self.subjectName}/OpenEphys/m{self.subjectID}c{self.sessionID}/SYNC/"
-        
+    def path_stitch_folder(self):
+        return self.mainpath+f"{self.subjectName}/OpenEphys/m{self.subjectID}c{self.sessionID}/STITCH/"
     
+    def path_sync_file(self,devID:int):
+        """Path of the stitched synchronization file for a device."""
+        p_s=self.path_stitch_folder()
+        if self.dev_ap(self.recid_list[0])==devID:
+            return p_s+'AP_sync.npz'
+        elif self.dev_lfp(self.recid_list[0])==devID:
+            return p_s+'LFP_sync.npz'
+        elif self.dev_nidaq(self.recid_list[0])==devID:
+            return p_s+'ANALOG_sync.npz'
+        
     def path_phy(self):
         """Path of the kilosort-created, phy-curated unit-spikes files."""
         return self.mainpath+f"{self.subjectName}/OpenEphys/m{self.subjectID}c{self.sessionID}/output/"
@@ -269,7 +291,10 @@ class npx_tempo:
                 self.logger.error(f"""recording{recID}""")
                 bOK=False
         return bOK
-    
+    def oe_ttl_timing_transform(self,recID):
+        A=self.oe_events[recID]
+        stim_start=list(A['stim_start'])
+        
     def tempo_events_load(self,recID):
         """Load the events from TEMPO files."""
         a=loadmat(self.path_tempo_mat(recID))
@@ -298,39 +323,6 @@ class npx_tempo:
         A=pd.DataFrame(A)
         return A
     
-    def build_stitch_time(self):
-        NDEV=3
-        RecID=self.recid_list
-        #Time_Stamps   =[[] for i in range(NDEV)]
-        #Sample_Numbers=[[] for i in range(NDEV)]
-        T=[None for i in range(NDEV)]
-        self.logger.info(f"""stitching time scale started""")
-        self.logger.info(f"""devices: AP:{self.dev_ap(RecID[0])}  LFP:{self.dev_lfp(RecID[0])}   NIDAQ:{self.dev_nidaq(RecID[0])} """)
-        for devID in [1]:#range(NDEV):
-            Time_Stamps=[]
-            Sample_Numbers=[]
-            for recID in RecID:
-            #self.oebin[recId]
-            
-                self.logger.info(f"""recID={recID} devID={devID} """)
-
-                p=self.path_oe_contfolder(recID,devID)
-                Time_Stamps+=[np.load(p+'timestamps.npy')]
-                Sample_Numbers+=[np.load(p+'sample_numbers.npy')]
-                print (recID)
-                #print (ts[:20])
-                #ts=(ts*1000000).astype(np.uint32)
-                #sn=np.load(p+'sample_numbers.npy').astype(np.uint32)
-                #print (ts[:20])
-                
-                #Time_Stamps[devID]   =np.hstack([Time_Stamps[devID],np.load(p+'timestamps.npy')])
-                #Sample_Numbers[devID]=np.hstack([Sample_Numbers[devID],np.load(p+'sample_numbers.npy')])
-            Time_Stamps=np.hstack(Time_Stamps)
-            Sample_Numbers=np.hstack(Sample_Numbers)
-            npz_path=self.path_sync()+f'SyncLUT_{devID}.npz'
-            np.savez_compressed(npz_path,Time_Stamps=Time_Stamps,Sample_Number=Sample_Numbers)
-            del(Time_Stamps)
-            del(Sample_Numbers)
 
         
     def align_tempo_oe_events(self,recID):
@@ -507,18 +499,17 @@ if __name__=="__main__":
     
     
         
-        
-    PATH="Z:/Data/MOOG/"
-    
-    #if True:
-    for sID in [461,485]:
-        C=npx_tempo(mainpath=PATH,subjectID=42,subjectName='Dazs',sessionID=sID)
+    step=2    
 
     
-    #print (C.dev_ap(1))
-    #print (C.dev_lfp(1))
-    #print (C.dev_nidaq(1))
-        C.build_stitch_time()        
+    if step==1:
+        PATH="Z:/Data/MOOG/"
+        sID=485
+        C=npx_tempo(mainpath=PATH,subjectID=42,subjectName='Dazs',sessionID=sID)
+    elif step==2:
+        T=C.oe_events[2]
+        print (T)
+
     """
     if False:
         C=npx_tempo(mainpath=PATH,subjectID=42,subjectName='Dazs',sessionID=461)
