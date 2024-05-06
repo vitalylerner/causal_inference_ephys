@@ -153,3 +153,4 @@ cython_debug/
 
 #
 SYNC/
+SpectralAnalysis/SAMPLE/continuous.dat
