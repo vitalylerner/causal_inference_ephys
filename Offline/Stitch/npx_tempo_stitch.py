@@ -39,7 +39,7 @@ def npx_oe_stitch(path_root:str):
     
     for data_source in ['AP','LFP','Analog']:
         # stictch data
-        
+        #"""
         stitchfile=stitchpath+data_source+'.dat'
         fOut=open(stitchfile,'wb')
         for irec in RecNums: 
@@ -50,7 +50,7 @@ def npx_oe_stitch(path_root:str):
             shutil.copyfileobj(fIn, fOut)
             fIn.close()
         fOut.close()
-        """
+        #"""
         # stitch timestamps and sample numbers
         sync_file=stitchpath+data_source+'_sync.npz'
         time_stamps=[]
@@ -70,7 +70,7 @@ def npx_oe_stitch(path_root:str):
         np.savez_compressed(sync_file, time_stamps=time_stamps,sample_numbers=sample_numbers)
         del(time_stamps)
         del(sample_numbers)
-        """
+        #"""
 if __name__=="__main__"                                     :
     path = filedialog.askdirectory(title="Experiment path",initialdir='D:/DATA/IMEC_DATA/')+'/'#, filetypes=(("text    files","*.txt"), ("all files","*.*")))
     #path='D:/IMEC_DATA/m42/m42c524/'

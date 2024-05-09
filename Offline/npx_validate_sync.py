@@ -35,7 +35,7 @@ def npx_validate_sync(path:str,graphics:bool=False):
         bk_show(f1)
 if __name__=="__main__"                                     :
     #path = filedialog.askdirectory(title="Experiment path",initialdir='D:/DATA/IMEC_DATA/')+'/'#, filetypes=(("text    files","*.txt"), ("all files","*.*")))
-    path='D:/IMEC_DATA/m42/m42c524/'
+    path='D:/IMEC_DATA/m42/m42c527/'
     bk_output_file('test.html')
     npx_validate_sync(path,True)
    
