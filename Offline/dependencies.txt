@@ -1,0 +1,7 @@
+
+pandas
+numpy
+bokeh
+open_ephys
+
+xlrd
