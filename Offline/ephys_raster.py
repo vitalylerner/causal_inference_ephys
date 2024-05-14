@@ -309,7 +309,7 @@ if __name__=="__main__":
         if u in su:            
             fName=p['figures_su']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
         elif u in mu:
-            fName=p['figures_su']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
+            fName=p['figures_mu']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
         bk_output_file(fName)
         bk_save(bk_row(G))
 
