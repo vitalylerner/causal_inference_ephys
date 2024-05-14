@@ -6,15 +6,22 @@ Created on Fri May 10 16:24:55 2024
 """
 import pandas as pd
 import numpy as np
-
+pd.options.mode.chained_assignment = None
 #graphical pachages for debugging, commented out when not in debugging mode
-#from bokeh.plotting import figure as bk_figure, output_file as bk_output_file, save as bk_save, show as bk_show
+from bokeh.plotting import figure as bk_figure, output_file as bk_output_file, save as bk_save, show as bk_show
+from bokeh.models import Label as bk_Label
+from bokeh.layouts import row as bk_row, column as bk_column
 #from PIL import Image as im 
-
+from scipy.ndimage import gaussian_filter1d
 
 class vision_spikes:
+    """preprocessing and initial analysis of ephys data.
     
-    
+    ephys recorded with Neuropixel,
+    behavior data from TEMPO,
+    ephys pre-processed with ks4 and phy2
+    """
+
     paths=None
     trials=None
     meta=None
@@ -24,6 +31,9 @@ class vision_spikes:
     cluser_group=None
     
     tempo_vars=None
+    condition_table=None
+    protocol_num=None
+    raster_by_condition=None
     
     def __init__(self,meta:dict,paths:dict):
         self.paths=paths
@@ -40,9 +50,30 @@ class vision_spikes:
         self.spike_clusters=np.load(self.paths['spike_clusters'])
         self.cluster_group=pd.read_csv(self.paths['cluster_group'],sep='\t')
         self.tempo_vars=pd.read_excel(self.paths['py_tempo'])
-
-    def build_raster(self,unit:int):
+        self.build_conditions_table()
         
+        
+    def unit_filename(self,unit:int):
+        meta=self.meta
+        return self.paths['output']+f'/m{meta["subject"]}c{meta["session"]}r{meta["recording"]}u{unit}_raster.npz'
+    
+    def raster_filename(self):
+        meta=self.meta
+        return self.paths['output']+f'/m{meta["subject"]}c{meta["session"]}r{meta["recording"]}_raster.npz'
+    
+    def multiunit_list(self):
+        clus=self.cluster_group
+        return list(clus[clus['group']=='mua']['cluster_id'])
+    
+    def singleunit_list(self):
+        clus=self.cluster_group
+        return list(clus[clus['group']=='good']['cluster_id'])
+        
+    def chrono_raster_sparse(self,unit:int):
+        """Build raster in a sparse form for a given unit.
+        
+        (trials)x[nspikes], nspikes differs for each trial
+        """
         T=self.trials[(self.trials['rec']==self.meta['recording'])]
         trials=list(T['trial'])
         spk_sample=self.spike_times
@@ -60,47 +91,117 @@ class vision_spikes:
             spikes_trial=spk_sample[filter_all]-sample_0
             raster+=[{'trial':trial,'spikes':spikes_trial*1.0/self.meta['sampling_rate']}]
         return raster
-    def build_raster_matrix(self,unit:int):
+    
+    def chrono_raster_matrix(self,unit:int):
+        """Build raster in a matrix form for a given unit.
+        
+        (trials)x(tpre+tpost), tpre and tpost in ms
+        """
         t_ms=np.arange(-self.meta['pre']*1000,self.meta['post']*1000)
-        raster=self.build_raster(unit)
+        raster=self.chrono_raster_sparse(unit)
         trial_num=len(raster)
         M=np.zeros((trial_num,t_ms.size),dtype=bool)
         for r in raster:
             trial=r['trial']-1
-            spikes=(np.array(r['spikes']*1000-self.meta['pre']*1000,dtype=float)).astype(np.int16)
-            
+            spikes=(np.array(r['spikes']*1000+self.meta['pre']*1000,dtype=float)).astype(np.int16)
             M[trial,spikes]=True
         return M
     
-    def build_all(self):
-        clas=self.cluster_group
-        meta=self.meta
-        MultiUnit=list(clas[clas['group']=='mua']['cluster_id'])
-        SingleUnit=list(clas[clas['group']=='good']['cluster_id'])
-        for unit in MultiUnit:
-            raster=self.build_raster_matrix(unit)
-            p=self.paths['output']+f'/m{meta["subject"]}c{meta["session"]}r{meta["recording"]}u{unit}_raster.npz'
-            np.savez_compressed(p,raster=raster,meta=meta,group='MultiUnit')
-        for unit in SingleUnit:
-            raster=self.build_raster_matrix(unit)
-            p=self.paths['output']+f'/m{meta["subject"]}c{meta["session"]}r{meta["recording"]}u{unit}_raster.npz'
-            np.savez_compressed(p,raster=raster,meta=meta,group='SingleUnit')
+    def condition_grand_raster(self):
+        """
+
+        Returns
+        -------
+        R : dict, keys: number of units
+            each element: raster,  list of n_conditions, 
+                each element: ntrials x 5000(ms) bool
+
+        """
+        su=self.singleunit_list()
+        mu=self.multiunit_list()
+        
+        R={}
+        
+        for u in su+mu:
+            R[u]=self.condition_raster(u)
+        return R
+    
+ 
+    def load_condition_raster(self):
+        try:
+            self.raster={}
+            with np.load(self.raster_filename(),allow_pickle=True)  as r:
+                for k in r.keys():
+                    self.raster[int(k)]=r[k]
+        except FileNotFoundError:
+            print ('Creating and saving rasters, will run faster next time...')
+            self.raster=self.condition_grand_raster()
+            r={}
+            for k in self.raster.keys():
+                r[f"{k}"]=self.raster[k]
+            np.savez_compressed(self.raster_filename(),**r)
+
+
+    def condition_raster(self,unit:int):
+        """Convert ungrouped rasters to a list of rasters.
+        
+        n_unique_conditions. 
+        Each item is a 2d raster corresponding to unique condition
+        in condition_table
+        dimensions of each item are trials x ms
+        """
+        conditions=self.condition_table
+        cond_num = len(conditions) 
+
+        chrono_raster=self.chrono_raster_matrix(unit)
+        trials_num,samples_num=chrono_raster.shape
+
+        Raster_Grouped=[None for i in range(cond_num)]
+        for i in range(cond_num):
+            cond=conditions.iloc[i]
+            try:
+                broken = list(np.where(self.trials['broke_fix'])[0])
+                trials=np.array(cond['trials'].split(','),dtype=int)
+                trials=[t-1 for t in trials if not t in broken ]
+            except ValueError:
+                print ('---------')
+                print ('ERROR! ERROR!')
+                print (cond)
+                trials=[]
+                print ('---------')
+            Raster_Grouped[i]=chrono_raster[trials,:]
+        return Raster_Grouped
             
     def build_conditions_table(self):
-    #Extract the necessary information from .log file
-    #generated by TEMPO
+        """Extract the necessary information from .log file.
+        
+        generated by TEMPO
+        This is a minimalistic parser for .log file
+        It does not parse .htb files and does not read all geometric
+        parameters.
+        Uses log files to arrange trials in groups for grouped rasters and PSTH
+        
+        the result is stored in the pandas table, each column corresponds
+        to a variable that changes from trial to trial,
+        and the last column is a string containing comma separated list of
+        trials, started with 1
+        
+        each row corresponds to a unique combination of the variables 
+        
+        """
+        condition_table={}
         logfile=self.paths['log']
         with open(logfile) as input_file:
             protocol_num = int ([next(input_file) for _ in range(5)][-1].split(' ')[1])
+        self.protocol_num=protocol_num
         tvars=self.tempo_vars[self.tempo_vars['protocol']==protocol_num]    
         
         if len(tvars)==0:
             print(f"no variables found in python_tempo_LUT.xls for protocol #{protocol_num}")
         
-        condition_table={}
+        
         for ivar in range(len(tvars)):
             tvar=tvars.iloc[ivar]
-            #print (tvar)
             tvar_pystr=str(tvar['py_str'])
             tvar_str = str(tvar['tempo_str'])
             tvar_py_array=bool(tvar['py_array'])
@@ -108,53 +209,126 @@ class vision_spikes:
             with open(self.paths['log'],'r') as f:
                 lines = [ [float(s) for s in line.split(' ')[1:] if not len(s)==0] for line in f if line.split(' ')[0]==tvar_str]
             values=np.array(lines,dtype=np.float32)
-            #print (values)
             if (~tvar_py_array) and tvar_tempo_array:
                 values=values[:,0].squeeze()
             condition_table[tvar_pystr]=values
         condition_table['trials']=["" for v in values]
         condition_table=pd.DataFrame.from_dict(condition_table)
         unique_condition_table=condition_table.drop_duplicates()
-       # print (unique_condition_table)
         py_vars=list(tvars['py_str'])
         for icond in range(len(unique_condition_table)):
             cond=unique_condition_table.iloc[icond]
             flt=[True for i in range(len(condition_table))]
             for py_var in py_vars:
                 flt&=condition_table[py_var]==cond[py_var]
-            #print (cond)
-            
-            #trials_condition=condition_table[flt]
-            #print (trials_condition)
             flt=f"{list(np.where(flt)[0]+1)}"[1:-1]
-            #cond['trials']=flt
             unique_condition_table.loc[icond,'trials']=flt
         unique_condition_table.sort_values(by=py_vars,inplace=True,ignore_index=True)
         self.condition_table=unique_condition_table
         
-
+    def plot_unit(self, unit:int):
+        C=self.condition_table
+        trials=self.trials
+        
+        conditions_num=len(C)
+        R=self.raster[unit]
+        
+        vars_str=''.join(list(vs.condition_table.columns[:-1]))
+        ttl=f'unit#{unit}, protocol#{self.protocol_num}: \n' + vars_str
+        g_raster=bk_figure(height=400,width=400,x_range=(-2,5),title=ttl)
+        
+        height=0
+        
+        for icond in range(conditions_num):
+            r=R[icond]
+            if len(np.shape(r))==1:
+                r=np.array([r])
+            trials_num=r.shape[0]
+            samples_num=r.shape[1]
+            
+            psth=r.sum(axis=0)
+            t_psth=np.arange(samples_num,dtype=float)*0.001-self.meta['pre']
+            h0=height
+            for itrial in range(trials_num):
+                spikes=np.where(r[itrial,:])[0]*0.001-self.meta['pre']
+                g_raster.scatter(spikes,height,marker='diamond',alpha=0.2)
+                height-=1
+            h1=height
+            cond_text=f"{list(C.iloc[icond])[:-1]}"[1:-1]
+            g_raster.add_layout(bk_Label(x=3.7,y=h1,text=cond_text))
+            g_raster.line([3.6]*2,[h0,h1-10],color="black")
+            
+            
+            psth_flt = gaussian_filter1d(psth*1.0, 20)
+            psth_std=psth_flt[:1000].std()
+            psth_bsl=psth_flt[:1000].mean()
+            g_raster.line(t_psth,(psth_flt-psth_bsl)*30+h1-10,color="black",alpha=0.2,line_width=2)
+            
+            height-=20
+        return g_raster#bk_column([g_raster,g_psth])
 
 
             
 if __name__=="__main__":
-    for rec in [1,2,3,4]:#range(1,7):
-        m={}
-        m['subject']=42
-        m['session']=527
-        m['recording']=rec
-        m['sampling_rate']=30000
-        m['pre']=1.5
-        m['post']=3.5
-        
-        p={}
-        
-        p['kilosort']=f'C:/Sorting/m{m["subject"]}c{m["session"]}'
-        p['tempo']='Z:/Data/MOOG/Dazs/TEMPO'
-        p['output']=f'Z:/Data/MOOG/DAZS/OpenEphys/m{m["subject"]}c{m["session"]}/Spikes'
-        
-        vs=vision_spikes(m,p)
-        vs.build_conditions_table()
-        print (vs.condition_table)
-        #vs.build_all()
+    REC=[1,2,3,4]
+    G_SU=[None for r in REC]
+    G_MU=[None for r in REC]
+    
+    plot_su=False
+    plot_mu=True
+    
+    m={}
+    m['subject']=42
+    m['session']=527
+    #m['recording']=rec
+    m['sampling_rate']=30000
+    m['pre']=1.5
+    m['post']=3.5
+    
+    p={}
+    
+    p['kilosort']=f'C:/Sorting/m{m["subject"]}c{m["session"]}'
+    p['tempo']='Z:/Data/MOOG/Dazs/TEMPO'
+    p['output']=f'Z:/Data/MOOG/DAZS/OpenEphys/m{m["subject"]}c{m["session"]}/Spikes'
+    p['figures']=f'Z:/Data/MOOG/DAZS/Results/m{m["subject"]}c{m["session"]}'
+    p['figures_su']=p['figures']+'/SU'
+    p['figures_mu']=p['figures']+'/MU'
+    
+    m['recording']=1
+    vs0=vision_spikes(m,p)        
+    su=vs0.singleunit_list()
+    mu=vs0.multiunit_list()
+    for u in su+mu:    
+        G=[None for rec in REC]
+        for irec,rec in enumerate(REC):#range(1,7):
+            m['recording']=rec
+            vs=vision_spikes(m,p)
+            vs.load_condition_raster()
+            g=vs.plot_unit(u)
+            G[irec]=g
+        if u in su:            
+            fName=p['figures_su']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
+        elif u in mu:
+            fName=p['figures_su']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
+        bk_output_file(fName)
+        bk_save(bk_row(G))
 
-        
+
+
+"""
+    def build_ungrouped_rasters(self):
+        #Build ungrouped rasters.
+        meta=self.meta
+        MultiUnit=self.multiunit_list()
+        SingleUnit=self.singleunit_list()
+
+        for unit in MultiUnit:
+            raster=self.build_raster_matrix(unit)
+            p=self.unit_filename(unit)
+            np.savez_compressed(p,raster=raster,meta=meta,group='MultiUnit')
+        for unit in SingleUnit:
+            raster=self.build_raster_matrix(unit)
+            p=self.unit_filename(unit)
+            np.savez_compressed(p,raster=raster,meta=meta,group='SingleUnit')        
+            
+ """
