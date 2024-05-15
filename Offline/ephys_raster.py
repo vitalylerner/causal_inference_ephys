@@ -266,7 +266,38 @@ class vision_spikes:
             
             height-=20
         return g_raster#bk_column([g_raster,g_psth])
-
+    def html_menu(self):
+        su=self.singleunit_list()
+        mu=self.multiunit_list()
+        
+        m=self.meta
+        htmlp=self.paths['figures']+'/Units.html'
+        
+        l=['<html>\n<!--VITALY 2024-->\n']
+        l+=['<body>']
+        l+=[f'<h1>m{m["subject"]} session{m["session"]}</h1>']
+        l+=['<h2> Single Units </h2>']
+        cnt=1
+        for u in su:
+            fname=f'SU/m{m["subject"]}c{m["session"]}u{u}.html'
+            l+=[f'<a href={fname} target="_blank" rel="noopener noreferrer">{u}</a>\t ']
+            if cnt%10==0:
+                l+=['<br>']
+            cnt+=1
+            
+        l+=['<h2> Multinuts </h2>']
+        cnt=1
+        for u in mu:
+            fname=f'MU/m{m["subject"]}c{m["session"]}u{u}.html'
+            l+=[f'<a href={fname} target="_blank" rel="noopener noreferrer">{u}</a>\t ']  
+            if cnt%10==0:
+                l+=['<br>']
+            cnt+=1
+        l+=['</body>']
+        l+=['</html>']
+        with open(htmlp,'w') as fhtml:
+            fhtml.writelines(l)
+        
 
             
 if __name__=="__main__":
@@ -287,7 +318,7 @@ if __name__=="__main__":
     
     p={}
     
-    p['kilosort']=f'C:/Sorting/m{m["subject"]}c{m["session"]}'
+    p['kilosort']=f'Z:/DATA/MOOG/Dazs/OpenEphys/m{m["subject"]}c{m["session"]}/kilosort4'
     p['tempo']='Z:/Data/MOOG/Dazs/TEMPO'
     p['output']=f'Z:/Data/MOOG/DAZS/OpenEphys/m{m["subject"]}c{m["session"]}/Spikes'
     p['figures']=f'Z:/Data/MOOG/DAZS/Results/m{m["subject"]}c{m["session"]}'
@@ -298,37 +329,21 @@ if __name__=="__main__":
     vs0=vision_spikes(m,p)        
     su=vs0.singleunit_list()
     mu=vs0.multiunit_list()
-    for u in su+mu:    
-        G=[None for rec in REC]
-        for irec,rec in enumerate(REC):#range(1,7):
-            m['recording']=rec
-            vs=vision_spikes(m,p)
-            vs.load_condition_raster()
-            g=vs.plot_unit(u)
-            G[irec]=g
-        if u in su:            
-            fName=p['figures_su']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
-        elif u in mu:
-            fName=p['figures_mu']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
-        bk_output_file(fName)
-        bk_save(bk_row(G))
+    vs0.html_menu()
+    if False:
+        for u in su+mu:    
+            G=[None for rec in REC]
+            for irec,rec in enumerate(REC):#range(1,7):
+                m['recording']=rec
+                vs=vision_spikes(m,p)
+                vs.load_condition_raster()
+                g=vs.plot_unit(u)
+                G[irec]=g
+            if u in su:            
+                fName=p['figures_su']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
+            elif u in mu:
+                fName=p['figures_mu']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
+            bk_output_file(fName)
+            bk_save(bk_row(G))
+    
 
-
-
-"""
-    def build_ungrouped_rasters(self):
-        #Build ungrouped rasters.
-        meta=self.meta
-        MultiUnit=self.multiunit_list()
-        SingleUnit=self.singleunit_list()
-
-        for unit in MultiUnit:
-            raster=self.build_raster_matrix(unit)
-            p=self.unit_filename(unit)
-            np.savez_compressed(p,raster=raster,meta=meta,group='MultiUnit')
-        for unit in SingleUnit:
-            raster=self.build_raster_matrix(unit)
-            p=self.unit_filename(unit)
-            np.savez_compressed(p,raster=raster,meta=meta,group='SingleUnit')        
-            
- """
