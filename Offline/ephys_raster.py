@@ -225,8 +225,21 @@ class vision_spikes:
             unique_condition_table.loc[icond,'trials']=flt
         unique_condition_table.sort_values(by=py_vars,inplace=True,ignore_index=True)
         self.condition_table=unique_condition_table
+    
+    def tuning(self,unit:int,t_baseline:tuple,t_signal:tuple):
+        #sr=self.meta['sampling_rate']
+        m=1000
+        n0=int(self.meta['pre']*m)
+        def t2n(t):
+            return int(t*m)+n0
+        n_bsl0=t2n(t_baseline[0])
+        n_bsl1=t2n(t_baseline[1])
+        n_sig0=t2n(t_signal[0])
+        n_sig1=t2n(t_signal[1])
         
-    def plot_unit(self, unit:int):
+        T_bsl=t_baseline[1]-t_baseline[0]
+        T_sig=t_signal[1]-t_signal[0]
+        
         C=self.condition_table
         trials=self.trials
         
@@ -238,7 +251,100 @@ class vision_spikes:
         g_raster=bk_figure(height=400,width=400,x_range=(-2,5),title=ttl)
         
         height=0
+        delta_firing=np.zeros(conditions_num)
+        for icond in range(conditions_num):
+            r=R[icond]
+            if len(np.shape(r))==1:
+                r=np.array([r])
+            trials_num=r.shape[0]
+            samples_num=r.shape[1]
+            
+            psth=r.sum(axis=0)
+            
+            t_psth=np.arange(samples_num,dtype=float)*0.001-self.meta['pre']
+            bsl=psth[n_bsl0:n_bsl1].sum()/(trials_num*T_bsl)
+            sig=psth[n_sig0:n_sig1].sum()/(trials_num*T_sig)
+            
+            delta_firing[icond]=sig-bsl
         
+            
+        return delta_firing        
+        
+    def plot_unit(self, unit:int):
+        C=self.condition_table
+        trials=self.trials
+        
+        conditions_num=len(C)
+        R=self.raster[unit]
+        
+        vars_str=''.join(list(self.condition_table.columns[:-1]))
+        ttl=f'unit#{unit}, protocol#{self.protocol_num}: \n' + vars_str
+        g_raster=bk_figure(height=400,width=400,x_range=(-2,5),title=ttl)
+       
+        height=0
+        
+        df=self.tuning(unit,(-0.8,-0.4),(1,1.8))
+        ncondvars=len(list(C.columns))-1
+        x=C[C.columns[0]]
+        if ncondvars==2:
+            y=C[C.columns[1]]
+        if self.protocol_num == 0:
+            g_tuning=bk_figure(height=300,width=300)
+            x=C.direction
+            
+            rng=(x>=0) & (x<=360) & np.invert(np.isnan(df))
+            x=x[rng]
+            #print (x)
+            df=df[rng]
+            #print(df)
+            
+            a=np.deg2rad(np.arange(360))
+            ax=np.cos(a)
+            ay=np.sin(a)
+            for i10 in range(5):
+                g_tuning.line(ax*(i10+1)*10,ay*(i10+1)*10,color='black',alpha=0.2)
+                
+                
+            fr_x=df*np.cos(np.deg2rad(x))
+            fr_y=df*np.sin(np.deg2rad(x))
+            g_tuning.scatter(fr_x,fr_y,color='black',size=6,marker='o')
+
+        elif self.protocol_num==1:
+            g_tuning=bk_figure(height=300,width=400,x_axis_type='log')
+            x=C.speed
+            rng=x>=0
+            x=x[rng]
+            df=df[rng]
+            g_tuning.line(x,df)
+        elif self.protocol_num==2:
+            g_tuning=bk_figure(height=300,width=400)
+            x=C.disp
+            rng=np.abs(x)<3.0
+            x=x[rng]
+            df=df[rng]
+            g_tuning.line(x,df)
+        elif self.protocol_num==12:
+            g_tuning=bk_figure(height=300,width=400)
+
+            rng=np.invert(np.isnan(df))
+            x=C.x
+            rng=np.abs(C.x)<30.
+            df=df[rng]
+            
+            crc_size=np.abs(df)
+            crc_color=np.sign(df)
+            CC=C[rng][['x','y']].copy()
+            CC["crc_size"]=crc_size
+            CC["crc_color"]=crc_color
+            #rng=[]
+            #x=C.x[rng]
+            #y=C.y[rng]
+            #print (CC)
+            for x_,y_ in zip(x,y):
+                g_tuning.scatter(x='x',y='y',size='crc_size',source=CC)
+        else:
+            g_tuning=bk_figure(height=300,width=300)
+            
         for icond in range(conditions_num):
             r=R[icond]
             if len(np.shape(r))==1:
@@ -265,7 +371,7 @@ class vision_spikes:
             g_raster.line(t_psth,(psth_flt-psth_bsl)*30+h1-10,color="black",alpha=0.2,line_width=2)
             
             height-=20
-        return g_raster#bk_column([g_raster,g_psth])
+        return bk_column([g_raster,g_tuning])
     def html_menu(self):
         su=self.singleunit_list()
         mu=self.multiunit_list()
@@ -329,9 +435,9 @@ if __name__=="__main__":
     vs0=vision_spikes(m,p)        
     su=vs0.singleunit_list()
     mu=vs0.multiunit_list()
-    vs0.html_menu()
-    if False:
-        for u in su+mu:    
+    #
+    if True:
+        for u in su:    
             G=[None for rec in REC]
             for irec,rec in enumerate(REC):#range(1,7):
                 m['recording']=rec
@@ -345,5 +451,7 @@ if __name__=="__main__":
                 fName=p['figures_mu']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
             bk_output_file(fName)
             bk_save(bk_row(G))
+    else:
+        vs0.html_menu()
     
 
