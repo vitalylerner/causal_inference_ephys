@@ -3,6 +3,10 @@
 Created on Fri May 10 16:24:55 2024
 
 @author: Vitaly
+
+@Requirements:
+numpy scipy bokeh pandas open-ephys-python-tools   
+
 """
 import pandas as pd
 import numpy as np
@@ -13,6 +17,9 @@ from bokeh.models import Label as bk_Label
 from bokeh.layouts import row as bk_row, column as bk_column
 #from PIL import Image as im 
 from scipy.ndimage import gaussian_filter1d
+
+
+from open_ephys.analysis import Session
 
 class vision_spikes:
     """preprocessing and initial analysis of ephys data.
@@ -44,10 +51,12 @@ class vision_spikes:
         self.paths['spike_times']       = paths['kilosort']+'/spike_times.npy'
         self.paths['spike_clusters']    = paths['kilosort']+'/spike_clusters.npy'
         self.paths['cluster_group'] = paths['kilosort']+'/cluster_group.tsv'
+        self.paths['spike_positions']= paths['kilosort']+'/spike_positions.npy'
         
         self.trials=pd.read_csv(self.paths['Trials'])
         self.spike_times=np.load(self.paths['spike_times'])
         self.spike_clusters=np.load(self.paths['spike_clusters'])
+        self.spike_positions=np.load(self.paths['spike_positions'])
         self.cluster_group=pd.read_csv(self.paths['cluster_group'],sep='\t')
         self.tempo_vars=pd.read_excel(self.paths['py_tempo'])
         self.build_conditions_table()
@@ -220,7 +229,7 @@ class vision_spikes:
             cond=unique_condition_table.iloc[icond]
             flt=[True for i in range(len(condition_table))]
             for py_var in py_vars:
-                flt&=condition_table[py_var]==cond[py_var]
+                flt&=np.array(condition_table[py_var].to_list())==cond[py_var]
             flt=f"{list(np.where(flt)[0]+1)}"[1:-1]
             unique_condition_table.loc[icond,'trials']=flt
         unique_condition_table.sort_values(by=py_vars,inplace=True,ignore_index=True)
@@ -269,7 +278,45 @@ class vision_spikes:
         
             
         return delta_firing        
+    def plot_unit_ephys(self,unit:int):
+        spk=self.spike_times
+        spu=self.spike_clusters
+        spp=self.spike_positions
+        # ISI histpgram
+        u_spk=spk[spu==unit]
+        u_isi=np.diff(u_spk)/30.  
+
         
+        fISI=bk_figure(height=400,width=400,title="ISI histogram",toolbar_location=None)
+
+        bins = np.linspace(0, 50, 25)
+        hist, edges = np.histogram(u_isi, density=True, bins=bins)
+        fISI.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:],
+                  fill_color="black", line_color="black",alpha=0.5,)
+        
+        # Waveform
+        """u_spk2=u_spk[:10]
+        print (self.paths['recording'])
+        session = Session(self.paths['recording']+'/recording1')
+        
+        rec=session.recordnodes[0].recordings[0]
+        for sample0 in u_spk2[:1]:
+            sample_start=sample0-60
+            sample_end=sample0+150
+            
+            data = rec.continuous[0].get_samples(start_sample_index=sample_start, end_sample_index=sample_end)
+            print (data.shape)
+        """
+        #print (spp.shape)
+        u_pos0=spp[spu==unit,0]
+        u_pos1=spp[spu==unit,1]
+        u_times=spk[spu==unit]
+        fPos=bk_figure(height=400,width=400,title="Position",toolbar_location='below')
+        #fPos.scatter(u_times,u_pos0)
+        fPos.scatter(u_times,u_pos1,alpha=0.1,color='black',marker='dot',size=12)
+        return bk_row([fISI,fPos])
+
+
     def plot_unit(self, unit:int):
         C=self.condition_table
         trials=self.trials
@@ -372,6 +419,7 @@ class vision_spikes:
             
             height-=20
         return bk_column([g_raster,g_tuning])
+    
     def html_menu(self):
         su=self.singleunit_list()
         mu=self.multiunit_list()
@@ -426,6 +474,7 @@ if __name__=="__main__":
     
     p['kilosort']=f'Z:/DATA/MOOG/Dazs/OpenEphys/m{m["subject"]}c{m["session"]}/kilosort4'
     p['tempo']='Z:/Data/MOOG/Dazs/TEMPO'
+    p['recording']=f'Z:/Data/MOOG/DAZS/OpenEphys/m{m["subject"]}c{m["session"]}'
     p['output']=f'Z:/Data/MOOG/DAZS/OpenEphys/m{m["subject"]}c{m["session"]}/Spikes'
     p['figures']=f'Z:/Data/MOOG/DAZS/Results/m{m["subject"]}c{m["session"]}'
     p['figures_su']=p['figures']+'/SU'
@@ -436,7 +485,10 @@ if __name__=="__main__":
     su=vs0.singleunit_list()
     mu=vs0.multiunit_list()
     #
-    if True:
+    F=vs0.plot_unit_ephys(290)
+    bk_output_file("test.html")
+    bk_show(F)
+    if False:
         for u in su:    
             G=[None for rec in REC]
             for irec,rec in enumerate(REC):#range(1,7):
@@ -451,7 +503,7 @@ if __name__=="__main__":
                 fName=p['figures_mu']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
             bk_output_file(fName)
             bk_save(bk_row(G))
-    else:
+    if False:
         vs0.html_menu()
     
 
