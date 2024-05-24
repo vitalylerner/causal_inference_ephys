@@ -5,6 +5,11 @@ Created on Thu May  9 11:48:59 2024
 @author: DeAngelis Lab
 """
 
+"""
+TODO: unify and structure directories, 
+currently it's a mess. One place for all, at least
+ephys. 
+"""
 from open_ephys.analysis import Session
 import numpy as np
 import pandas as pd

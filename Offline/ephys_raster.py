@@ -8,6 +8,17 @@ Created on Fri May 10 16:24:55 2024
 numpy scipy bokeh pandas open-ephys-python-tools   
 
 """
+
+"""
+TODO: unify and structure directories, 
+currently it's a mess. One place for all, at least
+ephys. 
+
+TODO: unite ci_tempo, moog_geometry and npx_tempo
+to one repository
+There are common funcitons, make sure to not duplicate them
+"""
+
 import pandas as pd
 import numpy as np
 pd.options.mode.chained_assignment = None
