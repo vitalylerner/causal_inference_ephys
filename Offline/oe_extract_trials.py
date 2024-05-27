@@ -2,7 +2,10 @@
 """
 Created on Thu May  9 11:48:59 2024
 
-@author: DeAngelis Lab
+@author: Vitaly
+
+
+pip install open-ephys-python-tools
 """
 
 """
@@ -15,6 +18,7 @@ import numpy as np
 import pandas as pd
 
 directory = 'D:/IMEC_DATA/m42/m42c527' 
+directory = 'D:/IMEC_DATA/m42/m42c539'
 
 session = Session(directory)
 recordnode=session.recordnodes[0]
