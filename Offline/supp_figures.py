@@ -10,12 +10,13 @@ import numpy as np
 pd.options.mode.chained_assignment = None
 #graphical pachages for debugging, commented out when not in debugging mode
 from bokeh.plotting import figure as bk_figure, output_file as bk_output_file, save as bk_save, show as bk_show
-from bokeh.models import Label as bk_Label
+from bokeh.models import Label as bk_Label, Range1d
 from bokeh.layouts import row as bk_row, column as bk_column
 #from PIL import Image as im 
 from scipy.ndimage import gaussian_filter1d
 
 from scipy.fft import fft, fftfreq
+from scipy import signal
 
 def figure_60Hz():
     #Root='Z:/Data/MOOG/Dazs/OpenEphys'
@@ -32,9 +33,9 @@ def figure_60Hz():
     t=np.arange(T*sr,dtype=float)/sr
     
     fl='C:/Sorting/m42c539/rec1AP.dat'
-    fl='C:/Sorting/m42c461rec1AP.dat'
+    #fl='C:/Sorting/m42c461rec1AP.dat'
     output='Figures/60Hz_539.html'
-    output='Figures/60Hz_461.html'
+    #output='Figures/60Hz_461.html'
     
     #fl='Z:/Data/MOOG/Dazs/OpenEphys/m42c461/recording1/continuous/Neuropix-PXI-109.ProbeA-AP/continuous.dat'
     tp=np.int32
@@ -43,14 +44,20 @@ def figure_60Hz():
     
     A=A.reshape((int(T*sr),nch)).T.astype(np.float64)
     
-    gp={'width':400,'height':250,'output_backend':'svg'}
-    fsig=bk_figure(**gp)
-    fF=bk_figure(y_axis_type='linear',x_axis_type='linear',y_range=[-20,60],**gp)
+    gp={'width':500,'height':800,'output_backend':'canvas'}
+    fsig=bk_figure(y_range=[-20,60],x_range=[-0.2,1.2],**gp)
+    
+    fF=bk_figure(**gp)
+    fsig.axis.visible=False
     
     amp=np.max(A,axis=1)-np.min(A,axis=1)
-    best=np.argsort(amp)[-20:-1:3]
+    best=np.argsort(amp)[-30:-1:1]
     worst=np.argsort(amp)[:5]
-    
+    #print (sorted(best[-20:]))
+    rng=list(range(34,40,2))
+    rng+=list(range(100,113,2))
+    rng+=list(range(226,233,2))
+    #rng+=list(range())
     N=A.shape[1]
     f = fftfreq(N, 1./sr)[:N//2]
     
@@ -58,9 +65,35 @@ def figure_60Hz():
     #print (amp)
     A-=A.mean()
     A/=A.std()
-    S=np.std(A)*15
-    for ip,p in enumerate(best):
-        fsig.line(t[:sr],A[p,:sr]+ip*S,color="black",alpha=1.0)
+    S=np.std(A)*8.
+    H=S*2.5
+    rng=sorted(best)[::-1]
+    fsig.y_range=Range1d(-2*H,(len(rng)+2)*H)
+    fsig.x_range=Range1d(-0.2,1.2)
+    fsig.axis.visible=False
+    fsig.grid.visible=False
+    
+    for ip,p in enumerate(rng):
+        
+        sig=A[p,:sr]
+        tsig=t[:sr]
+
+        #sig2=signal.decimate(sig-sig.mean(),16)+sig.mean()
+        #tsig2=np.arange(len(sig2),dtype=float)/len(sig2)
+        fsig.line([-0.1,1.1],[ip*H]*2,color='black',line_width=0.5,alpha=0.5)
+        fsig.line(tsig,sig+ip*H,color="black",alpha=1.0)
+        
+        lbl=bk_Label(x=-0.1,y=ip*H,text=f"{p}",text_color="black",
+                     text_baseline='middle',
+                     text_align='right',
+                     text_alpha=1.0)
+        fsig.add_layout(lbl)
+        
+    fsig.line([0,0.2],[-H]*2,color='black',line_width=2,alpha=1)
+    scale=bk_Label(x=0.05,y=-H*1.05,text='200ms',text_color='black',
+                   text_baseline='top')
+    fsig.add_layout(scale)
+        #fsig.line(tsig2,sig2+ip*S,line_color='red')
     #Vworst=np.mean(np.array([ 2.0/N*np.abs(fft(A[p,:]))[:N//2] for p in worst]),axis=0)
     #Vbest =np.mean(np.array([ 2.0/N*np.abs(fft(A[p,:]))[:N//2] for p in best]),axis=0)
 
