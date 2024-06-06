@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat May  4 13:10:19 2024
+This script validates the synchronization between two data files: a nidaq file and an npx file.
+It calculates the clock periods for both files and plots them using Bokeh library.
 
-@author: DeAngelis Lab
+Author: DeAngelis Lab
 """
+
+
 from bokeh.plotting import figure as bk_figure, output_file as bk_output_file, save as bk_save, show as bk_show
 import numpy as np    
 import os

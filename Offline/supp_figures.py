@@ -1,9 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon May 27 15:28:30 2024
+This file contains functions for generating supplementary figures related to the npx_tempo project.
 
-@author: Vitaly
+Functions:
+- figure_60Hz(): Generates a figure showing the 60Hz noise in the recorded data.
+- figure_drift(): Generates a figure showing the drift in spike positions over time.
+
+Note: This file is specific to the npx_tempo project and may not be applicable to other projects.
+@Author: Vitaly Lerner
+@Email: vlerner@ur.rochester.edu
+@Date: 2021-06-01
+@Version: 1
+@Description: figures for EAB2024 poster 
 """
+
 
 import pandas as pd
 import numpy as np
