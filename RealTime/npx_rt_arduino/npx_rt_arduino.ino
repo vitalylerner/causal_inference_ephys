@@ -68,8 +68,13 @@ void loop() {
   //StimGate=digitalRead(gate_pin)>0;
   if (Serial.available() > 0) {
     receivedChar = Serial.read();
-    Serial.println("Swithing");
+    
     StimGate=!StimGate;
+    Serial.print("Swithed to ");
+    if (StimGate)
+      Serial.println("visual stimulus trigger");
+    else
+      Serial.println("1Hz+sweep trigger");
   }
 
   //StimGate=true;
