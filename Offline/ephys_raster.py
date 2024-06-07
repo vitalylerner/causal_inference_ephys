@@ -8,6 +8,17 @@ Created on Fri May 10 16:24:55 2024
 numpy scipy bokeh pandas open-ephys-python-tools   
 
 """
+
+"""
+TODO: unify and structure directories, 
+currently it's a mess. One place for all, at least
+ephys. 
+
+TODO: unite ci_tempo, moog_geometry and npx_tempo
+to one repository
+There are common funcitons, make sure to not duplicate them
+"""
+
 import pandas as pd
 import numpy as np
 pd.options.mode.chained_assignment = None
@@ -15,12 +26,26 @@ pd.options.mode.chained_assignment = None
 from bokeh.plotting import figure as bk_figure, output_file as bk_output_file, save as bk_save, show as bk_show
 from bokeh.models import Label as bk_Label
 from bokeh.layouts import row as bk_row, column as bk_column
+from bokeh.colors import RGB
 #from PIL import Image as im 
 from scipy.ndimage import gaussian_filter1d
-
+import os
 
 from open_ephys.analysis import Session
+import multiprocessing
 
+def style_figure(f):
+    sz='12pt'
+    f.title.text_font_size=sz
+    f.output_backend='svg'
+    f.toolbar_location='below'
+    for obj in [f.xaxis,f.yaxis]:
+        obj.axis_label_text_font_size=sz
+        obj.major_label_text_font_size=sz
+        obj.major_label_text_font_size=sz
+
+
+        
 class vision_spikes:
     """preprocessing and initial analysis of ephys data.
     
@@ -234,8 +259,8 @@ class vision_spikes:
             unique_condition_table.loc[icond,'trials']=flt
         unique_condition_table.sort_values(by=py_vars,inplace=True,ignore_index=True)
         self.condition_table=unique_condition_table
-    
-    def tuning(self,unit:int,t_baseline:tuple,t_signal:tuple):
+
+    def tuning(self,unit:int,t_baseline:tuple=(-0.8,-0.4),t_signal:tuple=(1,1.8)):
         #sr=self.meta['sampling_rate']
         m=1000
         n0=int(self.meta['pre']*m)
@@ -253,6 +278,7 @@ class vision_spikes:
         trials=self.trials
         
         conditions_num=len(C)
+        #print (C)
         R=self.raster[unit]
         
         vars_str=''.join(list(vs.condition_table.columns[:-1]))
@@ -261,6 +287,7 @@ class vision_spikes:
         
         height=0
         delta_firing=np.zeros(conditions_num)
+        delta_firing_sem=np.zeros(conditions_num)
         for icond in range(conditions_num):
             r=R[icond]
             if len(np.shape(r))==1:
@@ -271,30 +298,85 @@ class vision_spikes:
             psth=r.sum(axis=0)
             
             t_psth=np.arange(samples_num,dtype=float)*0.001-self.meta['pre']
-            bsl=psth[n_bsl0:n_bsl1].sum()/(trials_num*T_bsl)
-            sig=psth[n_sig0:n_sig1].sum()/(trials_num*T_sig)
             
-            delta_firing[icond]=sig-bsl
+            dfr=r[:,n_sig0:n_sig1].sum(axis=1)-r[:,n_bsl0:n_bsl1].sum(axis=1)
+            delta_firing[icond]=dfr.mean()
+            delta_firing_sem[icond]=dfr.std()/np.sqrt(trials_num)
+            #bsl=psth[n_bsl0:n_bsl1].sum()/(trials_num*T_bsl)
+            #sig=psth[n_sig0:n_sig1].sum()/(trials_num*T_sig)
+            
+            #delta_firing[icond]=sig-bsl
         
             
-        return delta_firing        
+        return delta_firing,delta_firing_sem     
+    
     def plot_unit_ephys(self,unit:int):
         spk=self.spike_times
         spu=self.spike_clusters
         spp=self.spike_positions
         # ISI histpgram
+        
+        
         u_spk=spk[spu==unit]
         u_isi=np.diff(u_spk)/30.  
 
         
-        fISI=bk_figure(height=400,width=400,title="ISI histogram",toolbar_location=None)
-
-        bins = np.linspace(0, 50, 25)
+        fISI=bk_figure(height=400,width=400,title=f"u{unit} ISI histogram",toolbar_location=None)
+        style_figure(fISI)
+        isi_step=2
+        isi_max=200
+        bins = np.linspace(0, isi_max+isi_step, isi_max//isi_step)
         hist, edges = np.histogram(u_isi, density=True, bins=bins)
         fISI.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:],
                   fill_color="black", line_color="black",alpha=0.5,)
         
         # Waveform
+        #fDAT=self.paths['rec1dat']
+        nch=384
+        
+        
+        sr=30000
+        
+        npre=  int(sr*0.002)
+        npost= int(sr*0.010)
+        nseg=npre+npost
+        
+        tseg=(np.arange(nseg,dtype=float) -npre) /30
+        
+        """fWave=bk_figure(height=1000,width=400,title=f"u{unit}",toolbar_location='below')
+        VV=[]
+        for i in range(30):
+            nstart=(u_spk[i]-npre)*nch
+            
+            A=np.fromfile(fDAT,count=nseg*nch, dtype=np.int32,offset=nstart)
+            A=A.reshape( (nseg,nch)).T.astype(np.float64)
+            #A-=np.mean(A)
+            
+            #A/=np.std(A)
+            #thr=0.1
+            VV+=[A]
+            #for i in range(191):
+                #for k in [0,1]:
+            #        V=A[2*i+k,:]
+                    #V-=V.mean()
+                    #V/=V.std()
+                    #if (V.max()>V.std()*thr) or (V.min()<-thr*V.std()):
+            #            fWave.line(tseg+k*50,V+i*0.,color='black',alpha=0.05)
+                #fWave.line(tseg+50,A[2*i+1,:]+i*10,color='black',alpha=0.2)
+        VV=np.array(VV).mean(axis=0)   
+        VV-=VV.mean()
+        VV/=VV.std()
+        for i in range(192):
+            for k in [0,1]:
+                v=VV[i,:]
+            #V-=V.mean()
+            #V/=V.std()
+            #if (V.max()>V.std()*thr) or (V.min()<-thr*V.std()):
+                fWave.line(tseg+k*10,(v-v[:npre].mean())*2+i*1.0,color='black',alpha=1.0)
+        #print (VV.shape)
+        
+        
+        """
         """u_spk2=u_spk[:10]
         print (self.paths['recording'])
         session = Session(self.paths['recording']+'/recording1')
@@ -308,16 +390,124 @@ class vision_spikes:
             print (data.shape)
         """
         #print (spp.shape)
+        
+        # POSITION
         u_pos0=spp[spu==unit,0]
         u_pos1=spp[spu==unit,1]
         u_times=spk[spu==unit]
-        fPos=bk_figure(height=400,width=400,title="Position",toolbar_location='below')
+        fPos=bk_figure(height=400,width=400,title=f"u{unit} Position",toolbar_location='below')
         #fPos.scatter(u_times,u_pos0)
         fPos.scatter(u_times,u_pos1,alpha=0.1,color='black',marker='dot',size=12)
+        style_figure(fPos)
         return bk_row([fISI,fPos])
+    
+    def mapping_all(self):
+       # C=self.conditions_table
+        su=self.singleunit_list()
+        mu=self.multiunit_list()
+        #with multiprocessing.Pool(10) as p:
+        DF=np.array(list(map(self.tuning,su+mu)))
 
+        act_i=np.abs(DF).argmax(axis=1)
+        act_v=np.array([DF[iu,act_i[iu]] for iu in range(len(act_i))])
+        act_pot=act_v>10
+        act_supp=act_v<-4
+        #print (act_pot)
+        DFa=DF[act_pot,:]
+        DFa=np.array([(DFa[i,:]-DFa[i,0].min())/DFa[i,:].std() for i in range(DFa.shape[0])])
+        DFs=DF[act_supp,:]
+        DFs=np.array([(DFs[i,:]-DFs[i,0])/DFs[i,:].std() for i in range(DFs.shape[0])])
+        #DF2=np.abs(DF)#DF[np.abs(DF).max(axis=1).argsort(),:]
+        #print (DF)
+        print (f"activated:{len(DFa)}/{len(su)+len(mu)}, {int(100*len(DFa)/(len(su)+len(mu)))}%")
+        print (f"suppressed:{len(DFs)}/{len(su)+len(mu)}, {int(100*len(DFs)/(len(su)+len(mu)))}%")
+        
+        fM=bk_figure(width=400,height=800,title="mapping")
+        #fTs=bk_figure(width=200,height=800,y_range=fTa.y_range,title="tuning-")
+        k=0
+        for i in range(4):
+            for j in range(4):
+                k=i*4+j+1
+                
+                rng=np.where(DFa.argmax(axis=1)==k)[0]
+                
+                for i_n,n in enumerate(rng):
+                    a=DFa[n,1:].reshape((4,4))
+                    fM.image(image=[a],y=k*5,x=i_n*5,dw=4,dh=4,palette="Turbo256",level="image")
+                
+        """for fig in [fTa]:
+            fig.xgrid.grid_line_color = None
+            fig.ygrid.grid_line_color = None
+            fig.axis.visible=False
+        fTa.image(image=[DFa_ordered], x=1, y=len(dfs_order), 
+                  dw=DFa.shape[1], dh=DFa.shape[0], 
+                  palette="Turbo256", level="image")
+        fTa.image(image=[DFs_ordered], x=1, y=0,
+                  dw=DFs.shape[1], dh=DFs.shape[0],
+                  palette="Turbo256", level="image")
+        fTa.line([7.5]*2,[0,len(dfs_order)+len(dfa_order)],color="black",alpha=0.2,line_width=2)
+        fTa.line(np.array([3,3,7,7,7,11,11])+0.5,np.array([0,1,1,0,1,1,0])*2-2.5,color="black",line_width=2)
+        fTa.line([-1]*2,[0,20],color="black",line_width=2)
+        """
+        return fM
+        #df=self.tuning(unit,(-0.8,-0.4),(1,1.8))
+    def tuning_all(self):
+       # C=self.conditions_table
+        su=self.singleunit_list()
+        mu=self.multiunit_list()
+        #with multiprocessing.Pool(10) as p:
+        DF=np.array(list(map(self.tuning,su+mu)))
 
+        act_i=np.abs(DF).argmax(axis=1)
+        act_v=np.array([DF[iu,act_i[iu]] for iu in range(len(act_i))])
+        act_pot=act_v>4
+        act_supp=act_v<-4
+        #print (act_pot)
+        DFa=DF[act_pot,:]
+        DFa=np.array([(DFa[i,:]-DFa[i,0].min())/DFa[i,:].std() for i in range(DFa.shape[0])])
+        DFs=DF[act_supp,:]
+        DFs=np.array([(DFs[i,:]-DFs[i,0])/DFs[i,:].std() for i in range(DFs.shape[0])])
+        
+        print (f'max z={DFa.max():.2f},min z={DFs.min():.2f}')
+        #DF2=np.abs(DF)#DF[np.abs(DF).max(axis=1).argsort(),:]
+        dfa_argmax=np.argmax(DFa,axis=1)
+        DFa=DFa[dfa_argmax>0,:]
+        
+        dfs_argmin=np.argmin(DFs,axis=1)
+        DFs=DFs[dfs_argmin>0,:]
+        
+        dfa_order=DFa.max(axis=1).argsort()
+        DFa=DFa[dfa_order,:]
+        dfa_order=np.argmax(DFa,axis=1).argsort()[::-1]
+        dfs_order=np.argmin(DFs,axis=1).argsort()[::-1]
+        DFa_ordered=DFa[dfa_order,:]
+        DFs_ordered=DFs[dfs_order,:]
+        #print (DF)
+        print (f"activated:{len(dfa_order)}/{len(su)+len(mu)}, {int(100*len(dfa_order)/(len(su)+len(mu)))}%")
+        print (f"suppressed:{len(dfs_order)}/{len(su)+len(mu)}, {int(100*len(dfs_order)/(len(su)+len(mu)))}%")
+        
+        fTa=bk_figure(width=200,height=800,title="tuning+")
+        #fTs=bk_figure(width=200,height=800,y_range=fTa.y_range,title="tuning-")
+        for fig in [fTa]:
+            fig.xgrid.grid_line_color = None
+            fig.ygrid.grid_line_color = None
+            fig.axis.visible=False
+        fTa.image(image=[DFa_ordered], x=1, y=len(dfs_order), 
+                  dw=DFa.shape[1], dh=DFa.shape[0], 
+                  palette="Turbo256", level="image")
+        fTa.image(image=[DFs_ordered], x=1, y=0,
+                  dw=DFs.shape[1], dh=DFs.shape[0],
+                  palette="Turbo256", level="image")
+        fTa.line([7.5]*2,[0,len(dfs_order)+len(dfa_order)],color="black",alpha=0.2,line_width=2)
+        fTa.line(np.array([3,3,7,7,7,11,11])+0.5,np.array([0,1,1,0,1,1,0])*2-2.5,color="black",line_width=2)
+        fTa.line([-1]*2,[0,20],color="black",line_width=2)
+        
+        return bk_row(fTa)
+        #df=self.tuning(unit,(-0.8,-0.4),(1,1.8))
+        
     def plot_unit(self, unit:int):
+        
+        #gr_ephys=self.plot_unit_ephys(unit)
         C=self.condition_table
         trials=self.trials
         
@@ -327,16 +517,19 @@ class vision_spikes:
         vars_str=''.join(list(self.condition_table.columns[:-1]))
         ttl=f'unit#{unit}, protocol#{self.protocol_num}: \n' + vars_str
         g_raster=bk_figure(height=400,width=400,x_range=(-2,5),title=ttl)
-       
+        g_raster.xaxis.ticker=[-2,0,2,4]
+        style_figure(g_raster)
         height=0
         
-        df=self.tuning(unit,(-0.8,-0.4),(1,1.8))
+        df,df_sem=self.tuning(unit,(-0.8,-0.4),(1,1.8))
         ncondvars=len(list(C.columns))-1
         x=C[C.columns[0]]
+        
         if ncondvars==2:
             y=C[C.columns[1]]
-        if self.protocol_num == 0:
+        if self.protocol_num == 0: #direction tuning
             g_tuning=bk_figure(height=300,width=300)
+            
             x=C.direction
             
             rng=(x>=0) & (x<=360) & np.invert(np.isnan(df))
@@ -349,29 +542,34 @@ class vision_spikes:
             ax=np.cos(a)
             ay=np.sin(a)
             for i10 in range(5):
-                g_tuning.line(ax*(i10+1)*10,ay*(i10+1)*10,color='black',alpha=0.2)
+                g_tuning.line(ax*(i10+1)*10,ay*(i10+1)*10,line_width=2,color='black',alpha=0.2)
                 
                 
             fr_x=df*np.cos(np.deg2rad(x))
             fr_y=df*np.sin(np.deg2rad(x))
             g_tuning.scatter(fr_x,fr_y,color='black',size=6,marker='o')
 
-        elif self.protocol_num==1:
+        elif self.protocol_num==1: #speed tuning
             g_tuning=bk_figure(height=300,width=400,x_axis_type='log')
+            
             x=C.speed
             rng=x>=0
             x=x[rng]
             df=df[rng]
             g_tuning.line(x,df)
-        elif self.protocol_num==2:
+        elif self.protocol_num==2: #disparity tuning
             g_tuning=bk_figure(height=300,width=400)
             x=C.disp
             rng=np.abs(x)<3.0
             x=x[rng]
             df=df[rng]
-            g_tuning.line(x,df)
-        elif self.protocol_num==12:
-            g_tuning=bk_figure(height=300,width=400)
+            
+            g_tuning.line(x,df,line_width=2,color="black")
+            for x_,df_,df_sem_ in zip(x,df,df_sem):
+                g_tuning.line([x_]*2,[df_-df_sem_,df_+df_sem_],color='black')
+                
+        elif self.protocol_num==12: # RF Mapping
+            g_tuning=bk_figure(height=300,width=300)
 
             rng=np.invert(np.isnan(df))
             x=C.x
@@ -379,7 +577,19 @@ class vision_spikes:
             df=df[rng]
             
             crc_size=np.abs(df)
-            crc_color=np.sign(df)
+            #crc_color=np.sign(df)
+            s=np.sign(df)
+            crc_color=["white" for ss in s]
+            for iss,ss in enumerate(s):
+                if ss==-1.0:
+                    crc_color[iss]="red"
+                else:
+                    crc_color[iss]="blue"
+                    
+                    
+            #crc_color=RGB([ if ss==1 "blue"])
+            #s_clr=(100-s*80).astype(int)
+            #crc_color=RGB(s_clr,s_clr,s_clr)
             CC=C[rng][['x','y']].copy()
             CC["crc_size"]=crc_size
             CC["crc_color"]=crc_color
@@ -388,10 +598,11 @@ class vision_spikes:
             #y=C.y[rng]
             #print (CC)
             for x_,y_ in zip(x,y):
-                g_tuning.scatter(x='x',y='y',size='crc_size',source=CC)
+                g_tuning.scatter(x='x',y='y',size='crc_size',source=CC,color='crc_color',alpha=0.8)
         else:
             g_tuning=bk_figure(height=300,width=300)
-            
+        style_figure(g_tuning)
+        
         for icond in range(conditions_num):
             r=R[icond]
             if len(np.shape(r))==1:
@@ -404,12 +615,12 @@ class vision_spikes:
             h0=height
             for itrial in range(trials_num):
                 spikes=np.where(r[itrial,:])[0]*0.001-self.meta['pre']
-                g_raster.scatter(spikes,height,marker='diamond',alpha=0.2)
+                g_raster.scatter(spikes,height,marker='diamond',alpha=0.2,color="black")
                 height-=1
             h1=height
             cond_text=f"{list(C.iloc[icond])[:-1]}"[1:-1]
             g_raster.add_layout(bk_Label(x=3.7,y=h1,text=cond_text))
-            g_raster.line([3.6]*2,[h0,h1-10],color="black")
+            g_raster.line([3.6]*2,[h0,h1-10],color="black",line_width=2)
             
             
             psth_flt = gaussian_filter1d(psth*1.0, 20)
@@ -455,15 +666,15 @@ class vision_spikes:
 
             
 if __name__=="__main__":
-    REC=[1,2,3,4]
-    G_SU=[None for r in REC]
-    G_MU=[None for r in REC]
+    
+
     
     plot_su=False
     plot_mu=True
     
     m={}
     m['subject']=42
+    m['session']=539
     m['session']=527
     #m['recording']=rec
     m['sampling_rate']=30000
@@ -477,19 +688,63 @@ if __name__=="__main__":
     p['recording']=f'Z:/Data/MOOG/DAZS/OpenEphys/m{m["subject"]}c{m["session"]}'
     p['output']=f'Z:/Data/MOOG/DAZS/OpenEphys/m{m["subject"]}c{m["session"]}/Spikes'
     p['figures']=f'Z:/Data/MOOG/DAZS/Results/m{m["subject"]}c{m["session"]}'
+    
+    #p['rec1dat']=f'C:/Sorting/m42c539/rec1AP.dat'
+    
     p['figures_su']=p['figures']+'/SU'
     p['figures_mu']=p['figures']+'/MU'
     
-    m['recording']=1
+    for fld in ['output','figures','figures_su','figures_mu']:
+
+        if not os.path.exists(p[fld]):
+            os.makedirs(p[fld])
+            print("The new directory is created! " + p[fld])
+            
+    m['recording']=2
     vs0=vision_spikes(m,p)        
     su=vs0.singleunit_list()
     mu=vs0.multiunit_list()
     #
-    F=vs0.plot_unit_ephys(290)
-    bk_output_file("test.html")
-    bk_show(F)
+    su_super=[69,158,205,221,278,305,347,385,410,506,542,605,618,647,724,758]
+    su_super=[61,176,194,199,305,347,385,410,758]
+    su_super=[385,347]
+    su_super=[191]
+    #su_super=[191]
+    print (f"""m{m["subject"]}c{m["session"]}""")
+    print (f"{len(su)} single units")
+    print (f"{len(mu)} multiunits")
     if False:
-        for u in su:    
+        F=list(map(vs0.plot_unit_ephys,su))
+        #for iu in range(len(su)):
+        #    F[iu]=vs0.plot_unit_ephys(su[iu])
+            
+        bk_output_file("Figures/m42c527_all_ephys.html")
+        bk_show(bk_column(F))
+    
+    #G_SU=[None for r in REC]
+    #G_MU=[None for r in REC]
+    if False:
+        vs0.html_menu()
+    if False:
+        m['recording']=2
+        vs=vision_spikes(m,p)
+        print (vs.protocol_num)
+        vs.load_condition_raster()
+        F=vs.tuning_all()
+        bk_output_file("Figures/disp_tuning_all.html")
+        bk_show(F)
+    if False:
+        m['recording']=1
+        vs=vision_spikes(m,p)
+        print (vs.protocol_num)
+        vs.load_condition_raster()
+        F=vs.mapping_all()
+        bk_output_file("Figures/mapping_all.html")
+        bk_show(F)
+    if True:
+        REC=[3]
+        for u in [191]:#mu:    
+            fEphys=vs0.plot_unit_ephys(u)
             G=[None for rec in REC]
             for irec,rec in enumerate(REC):#range(1,7):
                 m['recording']=rec
@@ -501,9 +756,10 @@ if __name__=="__main__":
                 fName=p['figures_su']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
             elif u in mu:
                 fName=p['figures_mu']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
+            print (fName)
             bk_output_file(fName)
-            bk_save(bk_row(G))
-    if False:
-        vs0.html_menu()
+            F=bk_column([fEphys,bk_row(G)])
+            bk_save(F)
+
     
 

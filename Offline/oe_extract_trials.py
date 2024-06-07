@@ -1,15 +1,25 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu May  9 11:48:59 2024
 
-@author: DeAngelis Lab
 """
+This script extracts trial information from Open Ephys recordings and saves it to a CSV file.
+
+@Author: Vitaly Lerner
+@Email: vlerner@ur.rochester.edu
+@Date: 2024-05-01
+@Scope: Offline analysis of neural data recorded using Neuropixels probes and OpenEphys.
+Full documentation is in oe_extract_trials.md
+
+
+"""
+
+
 
 from open_ephys.analysis import Session
 import numpy as np
 import pandas as pd
 
 directory = 'D:/IMEC_DATA/m42/m42c527' 
+directory = 'D:/IMEC_DATA/m42/m42c539'
 
 session = Session(directory)
 recordnode=session.recordnodes[0]
