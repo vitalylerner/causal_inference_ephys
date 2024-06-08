@@ -1,17 +1,20 @@
 import streamlit as st
-
+def update_oe_path():
+    st.session_state.text=value
 def main():
     
-    st.header("Neuropixels Data Processing Pipeline")
-    openephys_folder = st.sidebar.file_uploader("Browse for a folder with OpenEphys recording")
-    
+
+    st.session_state.text = st.session_state.get("oe_path", "").upper()
+    st.text("Enter text", key="oe_path")
+    st.button("browse")
+
     # Controls for data processing pipeline
     if st.sidebar.button("Stitch OpenEphys recordings"):
         from Stitch.npx_tempo_stitch import npx_oe_stitch
         #path = filedialog.askdirectory(title="Experiment path",initialdir='D:/DATA/IMEC_DATA/')+'/'#, filetypes=(("text    files","*.txt"), ("all files","*.*")))
         
         path=openephys_folder
-        
+
         npx_oe_stitch(path)
         
 
