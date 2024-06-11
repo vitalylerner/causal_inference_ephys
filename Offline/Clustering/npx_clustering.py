@@ -1,0 +1,3 @@
+from npx_vision_classifier import npx_vision_classifier
+
+vc=npx_vision_classifier

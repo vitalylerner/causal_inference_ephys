@@ -1,6 +1,9 @@
 #local sandbox
 #sandbox/
 
+#debugging figures
+
+Offline/Clustering/Figures
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
