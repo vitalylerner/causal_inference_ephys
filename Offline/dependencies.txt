@@ -6,3 +6,4 @@ open_ephys
 
 xlrd
 open-ephys-python-tools
+scikit-learn
