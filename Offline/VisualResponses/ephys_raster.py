@@ -69,7 +69,7 @@ class vision_spikes:
     def __init__(self,meta:dict,paths:dict):
         self.paths=paths
         self.meta=meta
-        self.paths['py_tempo']='tempo_py_LUT.xls'
+        self.paths['py_tempo']='Offline/VisualResponses/tempo_py_LUT.xls'
         self.paths['Trials']=paths['kilosort']+'/Trials.csv'
         self.paths['log']=paths['tempo']+f'/m{meta["subject"]}c{meta["session"]}r{meta["recording"]}.log'
         self.paths['spike_times']       = paths['kilosort']+'/spike_times.npy'
@@ -251,6 +251,7 @@ class vision_spikes:
             condition_table[tvar_pystr]=values
         condition_table['trials']=["" for v in values]
         condition_table=pd.DataFrame.from_dict(condition_table)
+        TrialByTrial=condition_table.copy()
         unique_condition_table=condition_table.drop_duplicates()
         py_vars=list(tvars['py_str'])
         for icond in range(len(unique_condition_table)):
@@ -262,6 +263,8 @@ class vision_spikes:
             unique_condition_table.loc[icond,'trials']=flt
         unique_condition_table.sort_values(by=py_vars,inplace=True,ignore_index=True)
         self.condition_table=unique_condition_table
+        return TrialByTrial.drop('trials',axis=1)
+
 
     def tuning(self,unit:int,t_baseline:tuple=(-0.8,-0.4),t_signal:tuple=(1,1.8)):
         #sr=self.meta['sampling_rate']
@@ -678,7 +681,7 @@ if __name__=="__main__":
     m={}
     m['subject']=42
     m['session']=539
-    m['session']=527
+    #m['session']=527
     #m['recording']=rec
     m['sampling_rate']=30000
     m['pre']=1.5
@@ -703,7 +706,7 @@ if __name__=="__main__":
             os.makedirs(p[fld])
             print("The new directory is created! " + p[fld])
             
-    m['recording']=2
+    m['recording']=1
     vs0=vision_spikes(m,p)        
     su=vs0.singleunit_list()
     mu=vs0.multiunit_list()
@@ -712,57 +715,61 @@ if __name__=="__main__":
     su_super=[61,176,194,199,305,347,385,410,758]
     su_super=[385,347]
     su_super=[191]
-    #su_super=[191]
-    print (f"""m{m["subject"]}c{m["session"]}""")
-    print (f"{len(su)} single units")
-    print (f"{len(mu)} multiunits")
+    T=vs0.build_conditions_table()
+    T.to_excel( f"""Offline/VisualResponses/m{m["subject"]}c{m["session"]}_trial_conditions.xlsx""",index=False)
+    print(T)
     if False:
-        F=list(map(vs0.plot_unit_ephys,su))
-        #for iu in range(len(su)):
-        #    F[iu]=vs0.plot_unit_ephys(su[iu])
-            
-        bk_output_file("Figures/m42c527_all_ephys.html")
-        bk_show(bk_column(F))
-    
-    #G_SU=[None for r in REC]
-    #G_MU=[None for r in REC]
-    if False:
-        vs0.html_menu()
-    if False:
-        m['recording']=2
-        vs=vision_spikes(m,p)
-        print (vs.protocol_num)
-        vs.load_condition_raster()
-        F=vs.tuning_all()
-        bk_output_file("Figures/disp_tuning_all.html")
-        bk_show(F)
-    if False:
-        m['recording']=1
-        vs=vision_spikes(m,p)
-        print (vs.protocol_num)
-        vs.load_condition_raster()
-        F=vs.mapping_all()
-        bk_output_file("Figures/mapping_all.html")
-        bk_show(F)
-    if True:
-        REC=[3]
-        for u in [191]:#mu:    
-            fEphys=vs0.plot_unit_ephys(u)
-            G=[None for rec in REC]
-            for irec,rec in enumerate(REC):#range(1,7):
-                m['recording']=rec
-                vs=vision_spikes(m,p)
-                vs.load_condition_raster()
-                g=vs.plot_unit(u)
-                G[irec]=g
-            if u in su:            
-                fName=p['figures_su']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
-            elif u in mu:
-                fName=p['figures_mu']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
-            print (fName)
-            bk_output_file(fName)
-            F=bk_column([fEphys,bk_row(G)])
-            bk_save(F)
+        #su_super=[191]
+        print (f"""m{m["subject"]}c{m["session"]}""")
+        print (f"{len(su)} single units")
+        print (f"{len(mu)} multiunits")
+        if False:
+            F=list(map(vs0.plot_unit_ephys,su))
+            #for iu in range(len(su)):
+            #    F[iu]=vs0.plot_unit_ephys(su[iu])
+                
+            bk_output_file("Figures/m42c527_all_ephys.html")
+            bk_show(bk_column(F))
+        
+        #G_SU=[None for r in REC]
+        #G_MU=[None for r in REC]
+        if False:
+            vs0.html_menu()
+        if False:
+            m['recording']=2
+            vs=vision_spikes(m,p)
+            print (vs.protocol_num)
+            vs.load_condition_raster()
+            F=vs.tuning_all()
+            bk_output_file("Figures/disp_tuning_all.html")
+            bk_show(F)
+        if False:
+            m['recording']=1
+            vs=vision_spikes(m,p)
+            print (vs.protocol_num)
+            vs.load_condition_raster()
+            F=vs.mapping_all()
+            bk_output_file("Figures/mapping_all.html")
+            bk_show(F)
+        if True:
+            REC=[3]
+            for u in [191]:#mu:    
+                fEphys=vs0.plot_unit_ephys(u)
+                G=[None for rec in REC]
+                for irec,rec in enumerate(REC):#range(1,7):
+                    m['recording']=rec
+                    vs=vision_spikes(m,p)
+                    vs.load_condition_raster()
+                    g=vs.plot_unit(u)
+                    G[irec]=g
+                if u in su:            
+                    fName=p['figures_su']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
+                elif u in mu:
+                    fName=p['figures_mu']+f'/m{m["subject"]}c{m["session"]}u{u}.html'
+                print (fName)
+                bk_output_file(fName)
+                F=bk_column([fEphys,bk_row(G)])
+                bk_save(F)
 
-    
+        
 
