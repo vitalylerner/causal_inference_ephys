@@ -21,7 +21,7 @@ byte=4
 stimuli=pandas.read_csv(r'C:\Users\DeAngelis Lab\Desktop\Jessie\Trials.csv')
 stim=stimuli[stimuli['rec']==1]
 fstim=pandas.Series.to_numpy(stim['ap in stitch']/2)
-a=[np.fromfile('continuous.dat',dtype=np.int32,count=int(C*F*(secbefore+secafter)),offset=int(C*fstim[i]*byte-C*F*secbefore*byte))for i in range(len(fstim))]
+a=[np.fromfile("C:\\Users\\DeAngelis Lab\\Desktop\\Jessie\\continuous.dat",dtype=np.int32,count=int(C*F*(secbefore+secafter)),offset=int(C*fstim[i]*byte-C*F*secbefore*byte))for i in range(len(fstim))]
 b=[np.reshape(a,(int(len(a)/C),C)).T for a in a]
 
 
