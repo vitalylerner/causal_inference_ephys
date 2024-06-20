@@ -7,7 +7,7 @@ F=2500
 C=384
 secbefore=2
 secafter=3
-sep=100
+sep=10
 
 #load files
 a=np.fromfile("C:\\Users\\DeAngelis Lab\\Desktop\\Jessie\\LFP.dat",dtype=np.int16)
@@ -17,7 +17,7 @@ stim=stimuli[stimuli['rec']==1]
 fstim=pandas.Series.to_numpy(stim['lfp in stitch'])
 pos=pandas.DataFrame.to_numpy(pandas.read_csv("C:\\Users\\DeAngelis Lab\\Desktop\\Jessie\\m42c539r1_trial_conditions.csv"))
 
-#sort stimuili by position
+#sort stimuli by position
 _,unique=np.unique(pos,axis=0,return_index=True)
 unique1=np.sort(unique)
 pos1=[]
@@ -36,9 +36,12 @@ for i in range(len(pos1)):
         q=np.mean(r,axis=0)
         r=r-q
         matplotlib.pyplot.figure(i)
+        r_adjusted=r-q
+        r_normalized=np.zeros(r_adjusted.shape)
         for j in range(C):
-               r[j,:]-=np.mean(r[j,:])
-               r[j,:]/=np.std(r[j,:])
+               row_mean=np.mean(r_adjusted[j,:])
+               row_std=np.std(r_adjusted[j,:])
+               r_normalized[j,:]= (r_adjusted[j,:]-row_mean) / row_std if row_std>0 else r_adjusted[j,:]
                matplotlib.pyplot.plot(c,r[j,:]+sep*j,alpha=0.3,color='k')
                matplotlib.pyplot.xlabel(str(pos[pos1[i][0][0]]))
 
@@ -48,10 +51,12 @@ fig,ax=matplotlib.pyplot.subplots()
 for j in range(C):
         y[j,:]=np.mean([b[j,int(fstim[i]-F*secbefore):int(fstim[i]+F*secafter)]for i in range(len(fstim))],axis=0)
 z=np.mean(y,axis=0)
-y=y-z
+y_adjusted=y-z
+y_normalized=np.zeros(y_adjusted.shape)
 for j in range(C):  
-    y[j,:]-=np.mean(y[j,:])
-    y[j,:]/=np.std(y[j,:])
-    ax.plot(c,y[j,:]+sep*j,alpha=0.3,color='k')
+        row_mean=np.mean(y_adjusted[j,:])
+        row_std=np.std(y_adjusted[j,:])
+        y_normalized[j,:]= (y_adjusted[j,:]-row_mean) / row_std if row_std>0 else y_adjusted[j,:]
+        ax.plot(c,y_normalized[j,:]+sep*j,alpha=0.3,color='k')
 matplotlib.pyplot.show()
 
