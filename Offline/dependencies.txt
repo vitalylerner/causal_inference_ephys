@@ -6,3 +6,5 @@ open_ephys
 
 xlrd
 open-ephys-python-tools
+
+conda install numba & conda install cudatoolkit
