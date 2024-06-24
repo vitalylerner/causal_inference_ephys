@@ -42,7 +42,7 @@ for i in range(len(pos1)):
                row_mean=np.mean(r_adjusted[j,:])
                row_std=np.std(r_adjusted[j,:])
                r_normalized[j,:]= (r_adjusted[j,:]-row_mean) / row_std if row_std>0 else r_adjusted[j,:]
-               matplotlib.pyplot.plot(c,r[j,:]+sep*j,alpha=0.3,color='k')
+               matplotlib.pyplot.plot(c,r_normalized[j,:]+sep*j,alpha=0.3,color='k')
                matplotlib.pyplot.xlabel(str(pos[pos1[i][0][0]]))
 
 #take average trace across all stimuli, normalize as above, and plot

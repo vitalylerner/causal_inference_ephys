@@ -22,7 +22,7 @@ stimuli=pandas.read_csv(r'C:\Users\DeAngelis Lab\Desktop\Jessie\Trials.csv')
 stim=stimuli[stimuli['rec']==1]
 fstim=pandas.Series.to_numpy(stim['ap in stitch']/2)
 a=[np.fromfile("C:\\Users\\DeAngelis Lab\\Desktop\\Jessie\\continuous.dat",dtype=np.int32,count=int(C*F*(secbefore+secafter)),offset=int(C*fstim[i]*byte-C*F*secbefore*byte))for i in range(len(fstim))]
-b=[np.reshape(a,(int(len(a)/C),C)).T for a in a]
+b=[np.reshape(a[i],(int(len(a[i])/C),C)).T for i in range(len(a))]
 pos=pandas.DataFrame.to_numpy(pandas.read_csv("C:\\Users\\DeAngelis Lab\\Desktop\\Jessie\\m42c539r1_trial_conditions.csv"))
 
 #sort stimuli by position
@@ -53,7 +53,7 @@ for i in range(len(diff)):
     if x==nummax:
         break
 #create subplot layout to include graph of all contacts std difference, colored more readable version, and max diff traces
-axd=matplotlib.pyplot.figure(1,layout='constrained').subplot_mosaic(
+axd=matplotlib.pyplot.figure(int(len(pos1)),layout='constrained').subplot_mosaic(
     """
     ABCD
     AEFG
@@ -67,30 +67,25 @@ matplotlib.pyplot.colorbar(z)
 c=range(-F*secbefore,F*secafter)
 
 for i in range(numtraces):
-    axd["C"].plot(c,b[i][int(y[0,0])],alpha=0.1)   
+    axd["C"].plot(c,b[i][int(y[0,0])],alpha=0.3)   
 
 for i in range(numtraces):
-    axd["D"].plot(c,b[i][int(y[0,1])],alpha=0.1)
+    axd["D"].plot(c,b[i][int(y[0,1])],alpha=0.3)
 
 for i in range(numtraces):
-    axd["E"].plot(c,b[i][int(y[0,2])],alpha=0.1)
+    axd["E"].plot(c,b[i][int(y[0,2])],alpha=0.3)
 
 for i in range(numtraces):
-    axd["F"].plot(c,b[i][int(y[0,3])],alpha=0.1)
+    axd["F"].plot(c,b[i][int(y[0,3])],alpha=0.3)
 
 for i in range(numtraces):
-    axd["G"].plot(c,b[i][int(y[0,4])],alpha=0.1)
+    axd["G"].plot(c,b[i][int(y[0,4])],alpha=0.3)
 
-axd.suptitle('Across All Stimuli')
+matplotlib.pyplot.suptitle('Across All Stimuli')
 
-#first attempt at density plots
-#d=[b[int(y[0,2]),int(fstim[i]-F*secbefore):int(fstim[i]+F*secafter)]for i in range(numtraces)]
-#all_voltages=np.concatenate(d)
-#w=int(np.shape(d)[1]/(F*ms*50))
-
-#axd["H"].hist2d([c]*numtraces,all_voltages,bins=(w,100),cmap='turbo')
 
 #repeat for stimuli in each position
+c=range(-F*secbefore,F*secafter)
 for i in range(len(pos1)):
     baseb=np.array([np.std(b[a][:,int(F*secbefore-F*ms*basestart):int(F*secbefore-F*ms*baseend)],axis=1)for a in pos1[i][0]])
     steadyb=np.array([np.std(b[a][:,int(F*secbefore+F*ms*steadystart):int(F*secbefore+F*ms*steadyend)],axis=1)for a in pos1[i][0]])
@@ -98,13 +93,23 @@ for i in range(len(pos1)):
     diffgb=np.stack((diffb[0::2],diffb[1::2]),axis=1)
     axd=matplotlib.pyplot.figure(i,layout='constrained').subplot_mosaic(
     """
-    ABCD
-    AEFG
+    ABE
+    ACE
     """
 )
     axd["B"].bar(range(np.shape(steadyb)[1]), diffb)  
   
-    z=axd["A"].pcolormesh(diffgb,cmap='turbo',vmin=-0.1,vmax=0.1)     
+    z=axd["A"].pcolormesh(diffgb,cmap='turbo',vmin=-0.1,vmax=0.1)   
+    best=np.argmax(abs(diffb))
+    cc=np.concatenate([c]*len(pos1[i][0]))
+    e=np.empty(0)
+    for j in range(len(pos1[i][0])):
+        axd["C"].plot(c,b[pos1[i][0][j]][best],alpha=0.5)  
+        axd["C"].set_title(str(best))
+        e=np.insert(e,0,b[pos1[i][0][j]][best])
+    xnum=int(len(b[pos1[i][0][j]][best])/(F*ms*10))
+    axd["E"].hist2d(cc,e,bins=[xnum,50],cmap='turbo')
     matplotlib.pyplot.colorbar(z)
     matplotlib.pyplot.suptitle(str(pos[pos1[i][0][0]]))
+   
 matplotlib.pyplot.show()
