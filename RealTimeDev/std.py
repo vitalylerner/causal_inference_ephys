@@ -15,13 +15,13 @@ baseend=500 #ms before stimuli
 steadystart=500 #ms after stimuli
 steadyend=1500  #ms after stimuli
 numtrials=5
-byte=4
+byte=2
 
 #import data files
 stimuli=pandas.read_csv(r'C:\Users\DeAngelis Lab\Desktop\Jessie\Trials.csv')
 stim=stimuli[stimuli['rec']==1]
-fstim=pandas.Series.to_numpy(stim['ap in stitch']/2)
-a=[np.fromfile("C:\\Users\\DeAngelis Lab\\Desktop\\Jessie\\continuous.dat",dtype=np.int32,count=int(C*F*(secbefore+secafter)),offset=int(C*fstim[i]*byte-C*F*secbefore*byte))for i in range(len(fstim))]
+fstim=pandas.Series.to_numpy(stim['ap in stitch'])
+a=[np.fromfile("C:\\Users\\DeAngelis Lab\\Desktop\\Jessie\\continuous.dat",dtype=np.int16,count=int(C*F*(secbefore+secafter)),offset=int(C*fstim[i]*byte-C*F*secbefore*byte))for i in range(len(fstim))]
 b=[np.reshape(a[i],(int(len(a[i])/C),C)).T for i in range(len(a))]
 pos=pandas.DataFrame.to_numpy(pandas.read_csv("C:\\Users\\DeAngelis Lab\\Desktop\\Jessie\\m42c539r1_trial_conditions.csv"))
 
@@ -61,7 +61,7 @@ axd=matplotlib.pyplot.figure(int(len(pos1)),layout='constrained').subplot_mosaic
 )
 axd["B"].bar(range(np.shape(steady)[1]), diff)  
   
-z=axd["A"].pcolormesh(diffg,cmap='turbo',vmin=-0.1,vmax=0.1)     
+z=axd["A"].pcolormesh(diffg,cmap='turbo',vmin=-0.2,vmax=0.2)     
 matplotlib.pyplot.colorbar(z)
 
 c=range(-F*secbefore,F*secafter)
@@ -94,12 +94,12 @@ for i in range(len(pos1)):
     axd=matplotlib.pyplot.figure(i,layout='constrained').subplot_mosaic(
     """
     ABE
-    ACE
+    ACF
     """
 )
     axd["B"].bar(range(np.shape(steadyb)[1]), diffb)  
   
-    z=axd["A"].pcolormesh(diffgb,cmap='turbo',vmin=-0.1,vmax=0.1)   
+    z=axd["A"].pcolormesh(diffgb,cmap='turbo',vmin=-0.2,vmax=0.2)   
     best=np.argmax(abs(diffb))
     cc=np.concatenate([c]*len(pos1[i][0]))
     e=np.empty(0)
@@ -107,8 +107,11 @@ for i in range(len(pos1)):
         axd["C"].plot(c,b[pos1[i][0][j]][best],alpha=0.5)  
         axd["C"].set_title(str(best))
         e=np.insert(e,0,b[pos1[i][0][j]][best])
-    xnum=int(len(b[pos1[i][0][j]][best])/(F*ms*10))
-    axd["E"].hist2d(cc,e,bins=[xnum,50],cmap='turbo')
+        xnum=int(len(b[pos1[i][0][j]][best])/(F*ms*50))
+        upperstart=int(np.mean(b[pos1[i][0][j]][best]))+3*int(np.std(b[pos1[i][0][j]][best]))
+        lowerstart=int(np.mean(b[pos1[i][0][j]][best]))-3*int(np.std(b[pos1[i][0][j]][best]))
+    axd["E"].hist2d(cc,e,bins=[xnum,5],range=[[-F*secbefore,F*secafter],[upperstart,np.max(b[pos1[i][0][j]][best])]],cmap='turbo')
+    axd["F"].hist2d(cc,e,bins=[xnum,5],range=[[-F*secbefore,F*secafter],[np.min(b[pos1[i][0][j]][best]),lowerstart]],cmap='turbo')
     matplotlib.pyplot.colorbar(z)
     matplotlib.pyplot.suptitle(str(pos[pos1[i][0][0]]))
    
