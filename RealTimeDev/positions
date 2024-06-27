@@ -1,0 +1,29 @@
+import pandas as pd
+
+file_path="C:/Users/DeAngelis Lab/Desktop/Jessie/m42c551r1/continuous.log"
+trial_numbers=[]
+outcomes=[]
+x=[]
+y=[]
+with open(file_path,'r') as file:
+    for line in file:
+        if "TRIAL#" in line:
+            trial_number_match=re.search("TRIAL#\s*(\d+)",line)
+            if trial_number_match:
+                trial_numbers.append(int(trial_number_match.group(1)))
+        if "OUTCOME" in line:
+                    outcomes_match=re.search("OUTCOME\s*(\d+)",line)
+                    if outcomes_match:
+                        outcomes.append(int(outcomes_match.group(1)))
+        if "DOTS_AP_XCTR" in line:
+            x_match=re.search("DOTS_AP_XCTR\s*(-?\d+(\.\d+)?)",line)
+            if x_match:
+                x.append(float(x_match.group(1)))
+        if "DOTS_AP_YCTR" in line:
+            y_match=re.search("DOTS_AP_YCTR\s*(-?\d+(\.\d+)?)",line)
+            if y_match:
+                y.append(float(y_match.group(1)))
+df=pd.DataFrame({'Trial Number': trial_numbers, 'Outcome': outcomes, 'X': x, 'Y': y})
+filtered_df=df[df['Outcome']!=2][['X','Y']]
+csv_file_path = "C:/Users/DeAngelis Lab/Desktop/Jessie/m42c551r1/trial_conditions.csv"
+filtered_df.to_csv(csv_file_path, index=False)
