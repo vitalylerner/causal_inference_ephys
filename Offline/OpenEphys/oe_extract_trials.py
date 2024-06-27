@@ -20,9 +20,13 @@ import pandas as pd
 
 directory = 'D:/IMEC_DATA/m42/m42c527' 
 directory = 'D:/IMEC_DATA/m42/m42c539'
+directory = 'D:/IMEC_DATA/m42/m42c551'
+
+recordnode_num=1
+experiment_num=2
 
 session = Session(directory)
-recordnode=session.recordnodes[0]
+recordnode=session.recordnodes[recordnode_num]
 recnum=len(recordnode.recordings)
 
 #the real time and the offline differ by 1
