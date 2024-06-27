@@ -5,4 +5,5 @@ bokeh
 open_ephys
 
 xlrd
+openpyxl
 open-ephys-python-tools
