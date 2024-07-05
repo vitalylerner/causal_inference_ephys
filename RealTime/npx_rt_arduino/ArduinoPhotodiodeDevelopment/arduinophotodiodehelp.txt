@@ -5,6 +5,7 @@ Set-up:
 		-use t connector to connect this to both the arduino analog input and oscilloscope
 		-Connect Arduino digital output to oscilloscope
 Code:
+- Idea is to take a running average and determine when the average is changed significantly as the signal from the photodiode resembles a square wave where average should decrease significantly when visuali stimuli starts
 - initialize input and output pins, initial value for analog input variable, number of samples to take average over, list to hold samples, total, and average
 - read in analog input from photodiode as val
 - subtract the oldest input from the list storing values to average and replace with val
