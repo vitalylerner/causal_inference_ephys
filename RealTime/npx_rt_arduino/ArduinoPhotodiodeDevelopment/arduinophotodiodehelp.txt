@@ -1,0 +1,16 @@
+Set-up:
+- Connect photodiode to breadboard plug in and pin to Vcc and ground.
+- Connect wires to analog out and ground on breadboard and attach to BNC
+	if trying to view on oscilloscope:
+		-use t connector to connect this to both the arduino analog input and oscilloscope
+		-Connect Arduino digital output to oscilloscope
+Code:
+- initialize input and output pins, initial value for analog input variable, number of samples to take average over, list to hold samples, total, and average
+- read in analog input from photodiode as val
+- subtract the oldest input from the list storing values to average and replace with val
+- take the average of all items in the list 
+- adjust the index
+- if the average is changed significantly(adding this point to the average caused it to decrease significantly as high stimuli means lower output value) then output high
+- when there is no significant change in average output low
+	- this outputs a signal which has a peak when the visual stimuli start\
+- set x to represent the current average so it can be compared to the next average 
