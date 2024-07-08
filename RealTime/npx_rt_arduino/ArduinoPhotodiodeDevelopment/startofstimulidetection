@@ -2,7 +2,7 @@
 int analogPin=A4;
 int digitalOutPin =6;
 int val=0;
-const int numReadings=50;
+const int numReadings=100;
 int readings[numReadings];
 int index=0;
 int total=0;
@@ -29,6 +29,6 @@ total += val;
 index = (index + 1) % numReadings;
 avg = total / numReadings;
 if (x-avg>1 && val<avg) {digitalWrite(digitalOutPin,HIGH);}
-digitalWrite(digitalOutPin,LOW);
+if (x-avg<1 && val>avg) {digitalWrite(digitalOutPin,LOW);}
 x=avg;
 }
