@@ -29,6 +29,6 @@ total += val;
 index = (index + 1) % numReadings;
 avg = total / numReadings;
 if (x-avg>1 && val<avg) {digitalWrite(digitalOutPin,HIGH);}
-if (x-avg<1 ) {digitalWrite(digitalOutPin,LOW);}
+digitalWrite(digitalOutPin,LOW);
 x=avg;
 }
