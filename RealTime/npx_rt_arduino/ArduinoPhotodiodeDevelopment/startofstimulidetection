@@ -1,6 +1,8 @@
 
 int analogPin=A4;
 int digitalOutPin =6;
+int fixstart=5;
+int fixend=4;
 int val=0;
 const int numReadings=100;
 int readings[numReadings];
@@ -8,6 +10,7 @@ int index=0;
 int total=0;
 int avg=0;
 int x=0;
+char flag[]="off";
 
 void setup() {
    // Initialize serial communication for debugging
@@ -19,6 +22,8 @@ void setup() {
   // Set the digital output pin as an output
   pinMode(digitalOutPin, OUTPUT);
   pinMode(analogPin, INPUT);
+  pinMode(fixstart,INPUT);
+  pinMode(fixend,INPUT);
 }
 
 void loop() {
@@ -28,7 +33,9 @@ readings[index] = val;
 total += val;
 index = (index + 1) % numReadings;
 avg = total / numReadings;
-if (x-avg>1 && val<avg) {digitalWrite(digitalOutPin,HIGH);}
+if (digitalRead(fixstart)==HIGH){char flag[]="on"}
+if (digitalRead(fixend)==LOW){char flag[]="off"}
+if (flag=="on" && x-avg>1 && val<avg) {digitalWrite(digitalOutPin,HIGH);}
 if (x-avg<1 && val>avg) {digitalWrite(digitalOutPin,LOW);}
 x=avg;
 }
