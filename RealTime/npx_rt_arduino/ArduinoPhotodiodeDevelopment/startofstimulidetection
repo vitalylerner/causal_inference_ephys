@@ -10,7 +10,7 @@ int index=0;
 int total=0;
 int avg=0;
 int x=0;
-char flag[]="off";
+int flag=0;
 
 void setup() {
    // Initialize serial communication for debugging
@@ -33,9 +33,9 @@ readings[index] = val;
 total += val;
 index = (index + 1) % numReadings;
 avg = total / numReadings;
-if (digitalRead(fixstart)==HIGH){char flag[]="on"}
-if (digitalRead(fixend)==LOW){char flag[]="off"}
-if (flag=="on" && x-avg>1 && val<avg) {digitalWrite(digitalOutPin,HIGH);}
+if (digitalRead(fixstart)==HIGH){int flag=1}
+if (digitalRead(fixend)==HIGH){int flag=0}
+if (flag==1 && x-avg>1 && val<avg) {digitalWrite(digitalOutPin,HIGH);}
 if (x-avg<1 && val>avg) {digitalWrite(digitalOutPin,LOW);}
 x=avg;
 }
