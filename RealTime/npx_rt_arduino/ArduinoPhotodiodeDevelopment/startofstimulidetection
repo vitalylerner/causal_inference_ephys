@@ -33,8 +33,8 @@ readings[index] = val;
 total += val;
 index = (index + 1) % numReadings;
 avg = total / numReadings;
-if (digitalRead(fixstart)==HIGH){int flag=1}
-if (digitalRead(fixend)==HIGH){int flag=0}
+if (digitalRead(fixstart)==HIGH){flag=1;}
+if (digitalRead(fixend)==HIGH){flag=0;}
 if (flag==1 && x-avg>1 && val<avg) {digitalWrite(digitalOutPin,HIGH);}
 if (x-avg<1 && val>avg) {digitalWrite(digitalOutPin,LOW);}
 x=avg;
