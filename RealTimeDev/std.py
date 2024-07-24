@@ -10,10 +10,10 @@ contactsdistance=5
 numtraces=5
 secbefore=2
 secafter=3
-basestart=1000 #in ms before stimuli
+basestart=2000 #in ms before stimuli
 baseend=500 #ms before stimuli
 steadystart=500 #ms after stimuli
-steadyend=1500  #ms after stimuli
+steadyend=3000  #ms after stimuli
 numtrials=5
 byte=2
 
@@ -86,6 +86,7 @@ matplotlib.pyplot.suptitle('Across All Stimuli')
 
 #repeat for stimuli in each position
 c=range(-F*secbefore,F*secafter)
+
 for i in range(len(pos1)):
     baseb=np.array([np.std(b[a][:,int(F*secbefore-F*ms*basestart):int(F*secbefore-F*ms*baseend)],axis=1)for a in pos1[i][0]])
     steadyb=np.array([np.std(b[a][:,int(F*secbefore+F*ms*steadystart):int(F*secbefore+F*ms*steadyend)],axis=1)for a in pos1[i][0]])

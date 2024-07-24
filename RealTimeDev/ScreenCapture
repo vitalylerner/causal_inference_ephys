@@ -1,0 +1,30 @@
+import numpy as np 
+import cv2
+from mss import mss
+from PIL import Image
+
+bounding_box={'top':100, 'left':0,'width':400,'height':300}
+
+sct=mss()
+
+sct_img=sct.grab(bounding_box)
+prev_img=np.array(sct_img)
+change_detected=False
+while True:
+    sct_img=sct.grab(bounding_box)
+    curr_img=np.array(sct_img)
+    prev_gray=cv2.cvtColor(prev_img,cv2.COLOR_BGR2GRAY)
+    curr_gray=cv2.cvtColor(curr_img,cv2.COLOR_BGR2GRAY)
+    diff=cv2.absdiff(prev_gray,curr_gray)
+    _,thresh=cv2.threshold(diff,30,255,cv2.THRESH_BINARY)
+    image,contours,_=cv2.findContours(thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    if len(contours)>0:
+        change_detected=True
+        print("Change detected!")
+        prev_img=curr_img.copy()
+    if(cv2.waitKey(1)&0xFF)==ord('q'):
+        cv2.destroyAllWindows()
+        break
+    if not len(contours) > 0:
+        change_detected = False
+
