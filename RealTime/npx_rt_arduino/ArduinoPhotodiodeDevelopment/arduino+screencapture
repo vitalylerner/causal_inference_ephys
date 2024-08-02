@@ -1,0 +1,24 @@
+const int outputPin = 13; // Pin connected to the output signal
+int fixstart=5;
+int fexend=4;
+int flag=0;
+
+void setup() {
+  pinMode(outputPin, OUTPUT);
+  pinMode(fixstart,INPUT);
+  pinMode(fixend,OUTPUT);
+  Serial.begin(9600); // Initialize serial communication at 9600 baud
+}
+
+void loop() {
+  if (digitalRead(fixstart)==HIGH){flag=1;}
+  if (digitalRead(fixend)==HIGH){flag=0;}
+  if (Serial.available() > 0) {
+    char command = Serial.read();
+    if (command == 'H' && flag==1) {
+      digitalWrite(outputPin, HIGH);
+    } else if (command == 'L') {
+      digitalWrite(outputPin, LOW);
+    }
+  }
+}
