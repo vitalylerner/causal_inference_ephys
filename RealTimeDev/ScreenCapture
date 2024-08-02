@@ -4,6 +4,10 @@ from mss import mss
 import time
 import serial
 
+arduino_port= 'COM3'
+baud_rate=9600
+ser=serial.Serial(arduino_port,baud_rate)
+
 
 bounding_box={'top':0, 'left':0,'width':1280,'height':1024}
 
@@ -11,21 +15,24 @@ sct=mss()
 
 sct_img=sct.grab(bounding_box)
 prev_img=np.array(sct_img)
-prev_gray=cv2.cvtColor(prev_img,cv2.COLOR_BGR2GRAY)
+prev_img_downsampled = prev_img[::2, ::2]
+prev_gray=cv2.cvtColor(prev_img_downsampled,cv2.COLOR_BGR2GRAY)
 prev_brightness=np.mean(prev_gray)
 change_detected=False
 
 while True:
-    sct_img=sct.grab(bounding_box)
     t=time.localtime()
     current_time=time.strftime("%H:%M:%S",t)
     print(current_time)
+    sct_img=sct.grab(bounding_box)
     curr_img=np.array(sct_img)
-    prev_gray=cv2.cvtColor(prev_img,cv2.COLOR_BGR2GRAY)
-    curr_gray=cv2.cvtColor(curr_img,cv2.COLOR_BGR2GRAY)
+    curr_img_downsampled = curr_img[::2, ::2]
+    curr_gray=cv2.cvtColor(curr_img_downsampled,cv2.COLOR_BGR2GRAY)
     curr_brightness=np.mean(curr_gray)
     if curr_brightness>prev_brightness:
         change_detected=True
-        
+        ser.write(b'H')
+    else:
+        ser.write(b'L')
     prev_brightness=curr_brightness
 
