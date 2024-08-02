@@ -15,3 +15,5 @@ Code:
 - when there is no significant change in average output low
 	- this outputs a signal which has a peak when the visual stimuli start\
 - set x to represent the current average so it can be compared to the next average 
+-flag represents monkey fixation given by digital input signals
+-flag=1 means monkey is fixating so it is a requirement also for the signal to be high
