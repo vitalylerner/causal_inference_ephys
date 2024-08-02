@@ -1,0 +1,4 @@
+This code takes input from python code which is operating the screen capture. The corresponding code is called Screen Capture.
+The python code outputs H when the screen is brightend and L if it has not brightened from the last screen capture. Essentially it outputs H when something has flashed onto the screen, otherwise it outputs L.
+Arduino uses this H and L as well as the fixation start and stop signal to create signal representing received visual stimulation.
+If H and flag=1(when monkey has started fixating) digital output HIGH otherwise digital output LOW.
