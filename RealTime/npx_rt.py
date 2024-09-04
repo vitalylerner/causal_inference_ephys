@@ -13,7 +13,7 @@ class npx_rt_globals:
     npx_contacts=384
     npx_sampling_rate=30000
     npx_bufferlength=8*npx_sampling_rate
-    npx_rt_channels=2
+    npx_rt_channels=95
     
     
     nidaq_channels=8
@@ -35,6 +35,7 @@ class npx_rt_globals:
                  'trial end'  :3,
                  'success'    :4,
                  'frame'      :7,
+                 'flash'      :8,
                  'sync'       :12}
 
 

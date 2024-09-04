@@ -11,6 +11,7 @@ from datetime import datetime
 
 main_run=True
 
+
 class npx_rt_hub():
     """
     Neuropixel real time hub.
@@ -72,6 +73,16 @@ class npx_rt_hub():
     buffer_cursor=0
     buffer_n0=0
     nchannels=0
+    F=30000
+    ms=10**-3
+    #ms before/after to take baseline/steadystate
+    baseend=500
+    steadystart=500
+    steadyend=3000
+    numtrials=0
+    oldmeanb=0
+    oldmeans=0
+
     
     def __init__(self):
         self.s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -123,8 +134,24 @@ class npx_rt_hub():
         if not ((self.buffer_cursor+nsmp)>self.buffer.shape[1]):
             self.buffer[:,self.buffer_cursor:self.buffer_cursor+nsmp]=M
             self.buffer_cursor+=nsmp
+        else:
+            overlap=nsmp-(self.buffer.shape[1]-self.buffer_cursor)
+            self.buffer[:,:-overlap]=self.buffer[:,overlap:]
+            self.buffer[:,-nsmp:]=M
+            self.buffer_cursor=self.buffer.shape[1]
+            self.buffer_n0+=overlap
         self.report['buffer_cursor']=self.buffer_cursor
         #print ('dbg127',self.buffer_cursor,n0,nsmp)
+    #def std(self):
+     #numtrials+=1
+     #sample_number=self.pos['nidaq']['flash']
+     #base=np.std(self.buffer[:,(sample_number-self.buffer_n0)-int(F*ms*basestart):(sample_number-self.buffer_n0)-int(F*ms*baseend)],axis=1)
+     #steady=np.std(self.buffer[(sample_number-self.buffer_n0)+int(F*ms*steadystart):(sample_number-no)+int(F*ms*steadyend)],axis=1)
+     #meanbase=oldmeanb+(base-oldmeanb)/numtrials
+     #meansteady=oldmeans+(steady-oldmeans)/numtrials
+     #diff=(meansteady-meanbase)/meanbase
+     #oldmeanb=meanbase
+     #oldmeans=meansteady
     def listen(self):
         """Communication function."""
         
@@ -191,6 +218,9 @@ class npx_rt_hub():
                         
                         if self.flags['trial'] and (not M is None):
                             self.buffer_insert(M,n0)
+                            #if self.flags['']:
+                                #std(self.pos['nidaq'][myevent])
+
                         #print (f'received matrix {M.shape}')
                                     
             for event in self.events['npx']:
@@ -236,6 +266,7 @@ class npx_rt_hub():
                         self.flags['recording']=True
                     elif event == 'recording stop':
                         self.flags['recording']=False
+                    #elif event == 'flash':
 
         def process_tempow():
             pass

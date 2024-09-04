@@ -9,9 +9,10 @@ needs some work
 from npx_rt import npx_rt_globals,npx_rt_client
 from threading import Timer
 import time
+import shelve
+from tkinter import Tk,Label,Button,Entry
 
-from tkinter import Tk,Label,Button
-
+outfile=shelve.open('C:/npx_tempo/RealTime/myfile','c')
 class npx_rt_gui(npx_rt_client,Tk):
     """Neuropixel Real Time GUI.
     
@@ -93,8 +94,32 @@ class npx_rt_gui(npx_rt_client,Tk):
             #self.n_indicator_val[i].grid(column=1,row=j+1)
             self.n_indicator_lbl[i].place(x=j*200,y=40)
             self.n_indicator_val[i].place(x=j*200+100,y=40)
+        self.start_label=Label(self,text='Start Index:',**design)
+        self.start_label.place(x=100,y=300)
+        self.start_var=Entry(self)
+        self.start_var.place(x=200,y=300)
+
+        self.skip_label=Label(self, text='Skip Amount:',**design)
+        self.skip_label.place(x=100,y=400)
+        self.skip_var=Entry(self)
+        self.skip_var.place(x=200,y=400)
+
+        self.apply_button=Button(self,text='Apply Settings', command=self.apply_settings)
+        self.apply_button.place(x=200,y=450)
+
         self.cmdClose=Button(self,text="stop",command=self.stop)
         self.cmdClose.place(x=550,y=5)
+    def apply_settings(self):
+        try:
+            start=int(self.start_var.get())
+        except ValueError:
+            start=0
+        try:
+            skip=int(self.skip_var.get())
+        except ValueError:
+            skip=1
+        outfile["skip"]=skip
+        outfile["start"]=start
     def stop(self):
         """Stop the socket and stop the hub."""
         self.send("stop")

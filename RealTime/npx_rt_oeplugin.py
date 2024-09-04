@@ -1,6 +1,6 @@
 import numpy as np
 import oe_pyprocessor
-
+import shelve
 import socket,struct,time
 
 #import queue
@@ -89,6 +89,9 @@ class PyProcessor:
         Parameters:
         data - N x M numpy array, where N = num_channles, M = num of samples in the buffer.
         """
+        infile=shelve.open('C:/npx_tempo/RealTime/myfile')
+        start=infile["start"]
+        skip=infile["skip"]
         if npx_rt_globals.send_data and (self.device=='npx'):
             x=np.shape(data)
             nsmp=x[1]
@@ -98,7 +101,7 @@ class PyProcessor:
     
             self.nsmp+=nsmp 
             
-            M=data[:npx_rt_globals.npx_rt_channels,:]
+            M=data[start:start+skip*(npx_rt_globals.npx_rt_channels):skip,::3]
             if hub_connect:
                 self.ntc.send_matrix(M)
 
