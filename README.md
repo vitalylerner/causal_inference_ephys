@@ -1,2 +1,4 @@
-# npx_tempo
- Real Time and Offline analysis of recordings w/ Neuropxel probe, OpenEphys, Tempo
+# Causal Inference NHP Electrophysiology
+Vitaly Lerner vlerner@ur.rochester.edu
+
+UNDER CONSTRUCTION!
