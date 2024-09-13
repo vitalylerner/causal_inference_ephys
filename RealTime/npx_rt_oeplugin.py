@@ -92,6 +92,7 @@ class PyProcessor:
         infile=shelve.open('C:/npx_tempo/RealTime/myfile')
         start=infile["start"]
         skip=infile["skip"]
+        downsample=infile["downsample"]
         if npx_rt_globals.send_data and (self.device=='npx'):
             x=np.shape(data)
             nsmp=x[1]
@@ -101,7 +102,7 @@ class PyProcessor:
     
             self.nsmp+=nsmp 
             
-            M=data[start:start+skip*(npx_rt_globals.npx_rt_channels):skip,::3]
+            M=data[start:start+skip*(npx_rt_globals.npx_rt_channels):skip,::downsample]
             if hub_connect:
                 self.ntc.send_matrix(M)
 

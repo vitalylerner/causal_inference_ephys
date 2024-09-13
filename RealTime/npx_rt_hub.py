@@ -218,8 +218,7 @@ class npx_rt_hub():
                         
                         if self.flags['trial'] and (not M is None):
                             self.buffer_insert(M,n0)
-                            #if self.flags['']:
-                                #std(self.pos['nidaq'][myevent])
+                            
 
                         #print (f'received matrix {M.shape}')
                                     
@@ -267,6 +266,7 @@ class npx_rt_hub():
                     elif event == 'recording stop':
                         self.flags['recording']=False
                     #elif event == 'flash':
+                        #self.std()
 
         def process_tempow():
             pass

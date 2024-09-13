@@ -99,10 +99,15 @@ class npx_rt_gui(npx_rt_client,Tk):
         self.start_var=Entry(self)
         self.start_var.place(x=200,y=300)
 
-        self.skip_label=Label(self, text='Skip Amount:',**design)
+        self.skip_label=Label(self, text='Probe Skip Amount:',**design)
         self.skip_label.place(x=100,y=400)
         self.skip_var=Entry(self)
         self.skip_var.place(x=200,y=400)
+
+        self.downsample=Label(self,text='Data Skip Amount:',**design)
+        self.downsample.place(x=100,y=500)
+        self.downsample=Entry(self)
+        self.downsample.place(x=200,y=500)
 
         self.apply_button=Button(self,text='Apply Settings', command=self.apply_settings)
         self.apply_button.place(x=200,y=450)
@@ -118,8 +123,13 @@ class npx_rt_gui(npx_rt_client,Tk):
             skip=int(self.skip_var.get())
         except ValueError:
             skip=1
+        try:
+            downsample=int(self.downsample.get())
+        except ValueError:
+            downsample=1
         outfile["skip"]=skip
         outfile["start"]=start
+        outfile["downsample"]=downsample
     def stop(self):
         """Stop the socket and stop the hub."""
         self.send("stop")
