@@ -102,7 +102,12 @@ class pytempo_read_log:
         for key,name,cl,tp in zip(vars_keys,vars_tempo,vars_class,vars_type):
             D[key]=extract_var(name,cl,tp)
         
-        self.D=pd.DataFrame.from_dict(D)
+        try:
+            self.D=pd.DataFrame.from_dict(D)
+        except ValueError:
+            for k in D.keys():
+                print (k,len(D[k]))
+            
         #print (self.D)
 if __name__=='__main__':
     print ('pytempo v1')

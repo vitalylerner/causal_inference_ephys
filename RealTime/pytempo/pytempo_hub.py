@@ -10,14 +10,8 @@ from PyQt5.QtGui import QFont,QIcon
 
 
 from pytempo_read_log import pytempo_read_log
-
-
-
-
-
-
-
-
+from pytempo_miniplot import pytempo_miniplot
+from pytempo_reward_casino import pytempo_reward_casino
 
 SVN_Branch_Path='C:/TEMPO/MoogProtocol_VL/'
 reward_folder=SVN_Branch_Path+'Reward/'
@@ -27,11 +21,13 @@ reward_settings_file=reward_folder+'reward_settings.txt'
 class FileModifiedThread(QThread):
     update = pyqtSignal()
     file_path=None
+
     def __init__(self,event,file_path):
         QThread.__init__(self)
         self.file_path=file_path
         self.stopped=event
         self.reward_last_mod_time = None
+
 
     def run(self):
         while True:
@@ -46,7 +42,8 @@ class FileModifiedThread(QThread):
                     self.update.emit()
             time.sleep(1)  # Check every second
 
-class RewardSettingsApp(QWidget):
+class pytempo_hub(QWidget):
+
     def __init__(self):
         super().__init__()
         self.reward_last_mod_time = None    
@@ -54,6 +51,10 @@ class RewardSettingsApp(QWidget):
         stop_flag=Event()
         today = datetime.date.today()
         reward_file_name = f"Reward_{today.strftime('%y%m%d')}.csv"
+
+        self.reward_casino=pytempo_reward_casino(reward_folder)
+        self.reward_casino.roll()
+
         self.reward_full_path = reward_folder + reward_file_name
         self.reward_timer_thread = FileModifiedThread(stop_flag,self.reward_full_path)
         self.reward_timer_thread.update.connect(self.update_reward_progress)
@@ -114,6 +115,21 @@ class RewardSettingsApp(QWidget):
         self.title_bar.mousePressEvent = mousePressEvent
         self.title_bar.mouseMoveEvent = mouseMoveEvent
         self.title_bar.mouseReleaseEvent = mouseReleaseEvent
+
+    def init_psycho_tab(self):
+        self.analysis_tab = QWidget()
+        self.analysis_layout = QVBoxLayout()
+
+        self.axPsy1 = pg.PlotWidget()
+        self.axPsy1.setFixedSize(400, 400)
+        self.analysis_layout.addWidget(self.axPsy1)
+
+        self.miniplot = pytempo_miniplot(self.axPsy1)
+        #self.axPsy1.setLabel('left', 'Behavior Metric')
+        #self.axPsy1.setLabel('bottom', 'Time')
+
+        self.analysis_tab.setLayout(self.analysis_layout)
+        self.tabs.addTab(self.analysis_tab, "Simple Analysis")
 
     def init_reward_setting_tab(self):
          # Reward Settings Tab
@@ -207,6 +223,7 @@ class RewardSettingsApp(QWidget):
             self.behavior_reader.read_params()
             stats=self.behavior_reader.choice_stats()
             self.trials_stats.setText(f"Total: {stats['trials_total']}, Correct: {stats['trials_correct']} ({stats['correct_rate']}%)")
+            self.miniplot.plot(protocol=154,type='depth',D=self.behavior_reader.D)
         except ZeroDivisionError:
             self.trials_stats.setText("No trials yet.")
         except FileNotFoundError:
@@ -230,6 +247,8 @@ class RewardSettingsApp(QWidget):
             data = pd.read_csv(full_path)
             if not data.empty:
                 self.axRewardTime.plot(data.index, data.iloc[:, -1]*0.001, pen=pg.mkPen('lightgrey', width=2))
+                r=self.reward_casino.roll()
+
             else:
                 self.status_bar.setText("Reward file is empty.")
         except FileNotFoundError:
@@ -256,6 +275,7 @@ class RewardSettingsApp(QWidget):
         self.init_tabs()
         self.init_reward_setting_tab()
         self.init_reward_progrees_tab()
+        self.init_psycho_tab()
         #self.update_reward_progress()
                 # Status Bar
         self.layout.addWidget(self.status_bar)
@@ -293,5 +313,5 @@ class RewardSettingsApp(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ex = RewardSettingsApp()
+    ex = pytempo_hub()
     sys.exit(app.exec_())
