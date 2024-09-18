@@ -76,12 +76,13 @@ class npx_rt_hub():
     F=30000
     ms=10**-3
     #ms before/after to take baseline/steadystate
-    baseend=500
-    steadystart=500
-    steadyend=3000
-    numtrials=0
-    oldmeanb=0
-    oldmeans=0
+    self.basestart=2500
+    self.baseend=500
+    self.steadystart=500
+    self.steadyend=3000
+    self.numtrials=0
+    self.oldmeanb=0
+    self.oldmeans=0
 
     
     def __init__(self):
@@ -143,15 +144,15 @@ class npx_rt_hub():
         self.report['buffer_cursor']=self.buffer_cursor
         #print ('dbg127',self.buffer_cursor,n0,nsmp)
     #def std(self):
-     #numtrials+=1
+     #self.numtrials+=1
      #sample_number=self.pos['nidaq']['flash']
-     #base=np.std(self.buffer[:,(sample_number-self.buffer_n0)-int(F*ms*basestart):(sample_number-self.buffer_n0)-int(F*ms*baseend)],axis=1)
-     #steady=np.std(self.buffer[(sample_number-self.buffer_n0)+int(F*ms*steadystart):(sample_number-no)+int(F*ms*steadyend)],axis=1)
-     #meanbase=oldmeanb+(base-oldmeanb)/numtrials
-     #meansteady=oldmeans+(steady-oldmeans)/numtrials
+     #base=np.std(self.buffer[:,(sample_number-self.buffer_n0)-int(F*ms*self.basestart):(sample_number-self.buffer_n0)-int(F*ms*self.baseend)],axis=1)
+     #steady=np.std(self.buffer[(sample_number-self.buffer_n0)+int(F*ms*self.steadystart):(sample_number-self.buffer_n0)+int(F*ms*self.steadyend)],axis=1)
+     #meanbase=self.oldmeanb+(base-self.oldmeanb)/self.numtrials
+     #meansteady=self.oldmeans+(steady-self.oldmeans)/self.numtrials
      #diff=(meansteady-meanbase)/meanbase
-     #oldmeanb=meanbase
-     #oldmeans=meansteady
+     #self.oldmeanb=meanbase
+     #self.oldmeans=meansteady
     def listen(self):
         """Communication function."""
         
