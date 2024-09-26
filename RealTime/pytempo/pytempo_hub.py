@@ -3,6 +3,7 @@ import os,threading,time,datetime,sys,json
 from threading import Event
 import pandas as pd
 import pyqtgraph as pg
+import numpy as np
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout
 from PyQt5.QtWidgets import QPushButton, QFileDialog, QLabel,QTextEdit, QLineEdit,QTabWidget
 from PyQt5.QtCore import Qt,QPoint,QThread,pyqtSignal
@@ -10,28 +11,30 @@ from PyQt5.QtGui import QFont,QIcon
 
 
 from pytempo_read_log import pytempo_read_log
+from pytempo_miniplot import pytempo_miniplot
+from pytempo_reward_casino import pytempo_reward_casino
 
 
-
-
-
-
-
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../Behaviour/')))
+from ci_functions.ci_tempo import tempo_parser,tempo_constants,ci_preprocess_db  # Replace 'some_function' with the actual function you need to import
+from ci_functions.ci_analysis import ci_analysis,context
 
 
 SVN_Branch_Path='C:/TEMPO/MoogProtocol_VL/'
 reward_folder=SVN_Branch_Path+'Reward/'
-#rt_folder=SVN_Branch_Path+'RealTime/'
 reward_settings_file=reward_folder+'reward_settings.txt'
 
 class FileModifiedThread(QThread):
+    # Signal to emit when file is modified
     update = pyqtSignal()
     file_path=None
+
     def __init__(self,event,file_path):
         QThread.__init__(self)
         self.file_path=file_path
         self.stopped=event
         self.reward_last_mod_time = None
+
 
     def run(self):
         while True:
@@ -46,7 +49,8 @@ class FileModifiedThread(QThread):
                     self.update.emit()
             time.sleep(1)  # Check every second
 
-class RewardSettingsApp(QWidget):
+class pytempo_hub(QWidget):
+
     def __init__(self):
         super().__init__()
         self.reward_last_mod_time = None    
@@ -54,6 +58,10 @@ class RewardSettingsApp(QWidget):
         stop_flag=Event()
         today = datetime.date.today()
         reward_file_name = f"Reward_{today.strftime('%y%m%d')}.csv"
+
+        self.reward_casino=pytempo_reward_casino(reward_folder)
+        self.reward_casino.roll()
+
         self.reward_full_path = reward_folder + reward_file_name
         self.reward_timer_thread = FileModifiedThread(stop_flag,self.reward_full_path)
         self.reward_timer_thread.update.connect(self.update_reward_progress)
@@ -65,7 +73,9 @@ class RewardSettingsApp(QWidget):
         self.behavior_timer_thread.update.connect(self.update_behavior_progress)
         
 
-        self.behavior_reader = pytempo_read_log(self.behavior_full_path)
+        self.behavior_reader = pytempo_read_log(self.behavior_full_path) #to be replaced by ci_analysis
+        self.tempo_parser = tempo_parser('C:/TEMPO/MoogProtocol_VL/','params.log')
+        
         self.update_behavior_progress()
         self.behavior_timer_thread.start()
 
@@ -114,6 +124,23 @@ class RewardSettingsApp(QWidget):
         self.title_bar.mousePressEvent = mousePressEvent
         self.title_bar.mouseMoveEvent = mouseMoveEvent
         self.title_bar.mouseReleaseEvent = mouseReleaseEvent
+
+    def init_psycho_tab(self):
+        self.analysis_tab = QWidget()
+        self.analysis_layout = QVBoxLayout()
+        self.axPsy = []
+
+        for irow in range(2):
+            row = QHBoxLayout()
+            for icol in range(2):
+                ax = pg.PlotWidget()
+                ax.setFixedSize(200, 200)
+                row.addWidget(ax)
+                self.axPsy.append(ax)
+            self.analysis_layout.addLayout(row)
+
+        self.analysis_tab.setLayout(self.analysis_layout)
+        self.tabs.addTab(self.analysis_tab, "Simple Analysis")
 
     def init_reward_setting_tab(self):
          # Reward Settings Tab
@@ -198,7 +225,7 @@ class RewardSettingsApp(QWidget):
         self.tabs.addTab(self.progress_tab, "Reward Progress")
 
 
-
+    
     def update_behavior_progress(self):
         now_string=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
@@ -207,6 +234,76 @@ class RewardSettingsApp(QWidget):
             self.behavior_reader.read_params()
             stats=self.behavior_reader.choice_stats()
             self.trials_stats.setText(f"Total: {stats['trials_total']}, Correct: {stats['trials_correct']} ({stats['correct_rate']}%)")
+
+            self.tempo_parser.retrieve_meta()
+            self.tempo_parser.retrieve_data()
+
+
+            Dazs=context()
+            Dazs.name="Dazs"
+            Dazs.VIEW_DIST=36.3
+            Dazs.EYE_Z    =3.5
+            Dazs.IO       =3.2
+            #print (Dazs)
+            #print (self.tempo_parser.header['protocol'])
+            if self.tempo_parser.header['protocol']=="NHP_OBJ_CI_MOTION_DETECTION":
+                ci_preprocess_db(self.tempo_parser.table)
+                cia=ci_analysis(Dazs,False,self.tempo_parser.table)
+                flt=cia.defaultfilter()
+                htxt=cia.header(flt)
+
+                # depth psychometric curves
+                DP=cia.depth_psychometric(flt,subplots=False,bFit=False)
+
+                P=DP
+                p=P[0]
+                plots=list(p.plots.keys())
+           
+                ax=self.axPsy[0]
+                ax.clear()
+                for ipl,pl in enumerate(plots):
+                    x=np.array(p.plots[pl].xmean.to_list())
+                    y=np.array(p.plots[pl].y.to_list())
+                    n=np.array(p.plots[pl].n.to_list())
+
+                    y95low=np.array(p.plots[pl].y95low.to_list())
+                    y95high=np.array(p.plots[pl].y95high.to_list())
+                    ax.plot(x,y, pen='lightgrey', symbol='o', symbolBrush='darkgrey')
+        
+                ax.setLabel('bottom', 'disp-incr')
+                ax.setLabel('left', 'prop "near"')
+
+                MP=cia.motion_psychometric(flt,subplots=False,bFit=False)
+
+                P=MP
+                p=P[0]
+                plots=list(p.plots.keys())
+           
+                ax=self.axPsy[1]
+                ax.clear()
+                for ipl,pl in enumerate(plots):
+                    x=np.array(p.plots[pl].xmean.to_list())
+                    y=np.array(p.plots[pl].y.to_list())
+                    n=np.array(p.plots[pl].n.to_list())
+
+                    y95low=np.array(p.plots[pl].y95low.to_list())
+                    y95high=np.array(p.plots[pl].y95high.to_list())
+                    ax.plot(x,y, pen='lightgrey', symbol='o', symbolBrush='darkgrey')
+        
+                ax.setLabel('bottom', 'obj-amp')
+                ax.setLabel('left', 'prop "moving"')
+
+                if False:
+                    x=self.tempo_parser.table.obj_amp
+                    y=self.tempo_parser.table.ret_amp
+                    ax=self.axPsy[3]
+                    ax.clear()
+                    ax.plot(x, y, pen=None, symbol='d', symbolBrush=pg.mkBrush(50, 50, 50, 25))  # 25 is the alpha value (0.1 * 255)
+                    ax.setLabel('left', 'retinal amplitude')
+                    ax.setLabel('bottom', 'world amplitude')
+
+            #print (self.tempo_parser.table.head())
+            #self.miniplot.plot(protocol=154,type='depth',D=self.behavior_reader.D)
         except ZeroDivisionError:
             self.trials_stats.setText("No trials yet.")
         except FileNotFoundError:
@@ -230,6 +327,8 @@ class RewardSettingsApp(QWidget):
             data = pd.read_csv(full_path)
             if not data.empty:
                 self.axRewardTime.plot(data.index, data.iloc[:, -1]*0.001, pen=pg.mkPen('lightgrey', width=2))
+                r=self.reward_casino.roll()
+
             else:
                 self.status_bar.setText("Reward file is empty.")
         except FileNotFoundError:
@@ -256,6 +355,7 @@ class RewardSettingsApp(QWidget):
         self.init_tabs()
         self.init_reward_setting_tab()
         self.init_reward_progrees_tab()
+        self.init_psycho_tab()
         #self.update_reward_progress()
                 # Status Bar
         self.layout.addWidget(self.status_bar)
@@ -293,5 +393,5 @@ class RewardSettingsApp(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ex = RewardSettingsApp()
+    ex = pytempo_hub()
     sys.exit(app.exec_())

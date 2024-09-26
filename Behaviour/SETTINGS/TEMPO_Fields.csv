@@ -1,0 +1,15 @@
+field_in_log,field,isarray,type,unit,multiplier,trialvar
+OBJ_CAUSAL_TASK_TYPE,Task,FALSE,int,,1,TRUE
+OBJ_DISP_INCR,disp_incr,FALSE,float,deg,1,TRUE
+OBJ_AMPLITUDE,obj_amp,FALSE,float,cm,100,TRUE
+AMPLITUDE,self_amp,FALSE,float,cm,100,TRUE
+Chosen_Target,choice,FALSE,int,,1,TRUE
+OBJ_ORIGIN_X,start_x,FALSE,float,cm,100,TRUE
+OBJ_ORIGIN_Y,y,FALSE,float,cm,100,TRUE
+OBJ_ORIGIN_Z,z,FALSE,float,cm,100,TRUE
+OUTCOME,outcome,FALSE,int,,1,TRUE
+TARG_LUM_MULT,targ_lum,TRUE,float,,1,TRUE
+DATE,datetime,TRUE,str,,,FALSE
+PROTOCOL,protocol,FALSE,str,,,FALSE
+OBJ_VERT_DISP_FLAG,vert_disp_flag,FALSE,bool,,1,TRUE
+OBJ_VERT_DISP_SIGMA,vert_disp_sigma,FALSE,float,cm,1,TRUE
