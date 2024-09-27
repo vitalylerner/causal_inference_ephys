@@ -8,6 +8,7 @@ from threading import Timer
 from npx_rt import npx_rt_globals
 import numpy as np
 from datetime import datetime
+import shelve
 
 main_run=True
 
@@ -143,15 +144,20 @@ class npx_rt_hub():
         self.report['buffer_cursor']=self.buffer_cursor
         #print ('dbg127',self.buffer_cursor,n0,nsmp)
     #def std(self):
-     #numtrials+=1
-     #sample_number=self.pos['nidaq']['flash']
-     #base=np.std(self.buffer[:,(sample_number-self.buffer_n0)-int(F*ms*basestart):(sample_number-self.buffer_n0)-int(F*ms*baseend)],axis=1)
-     #steady=np.std(self.buffer[(sample_number-self.buffer_n0)+int(F*ms*steadystart):(sample_number-no)+int(F*ms*steadyend)],axis=1)
-     #meanbase=oldmeanb+(base-oldmeanb)/numtrials
-     #meansteady=oldmeans+(steady-oldmeans)/numtrials
-     #diff=(meansteady-meanbase)/meanbase
-     #oldmeanb=meanbase
-     #oldmeans=meansteady
+        #infile=shelve.open('C:/npx_tempo/RealTime/myfile')
+        #start=infile["start"]
+        #skip=infile["skip"]
+        #numtrials+=1
+        #sample_number=self.pos['nidaq']['flash']
+        #base=np.std(self.buffer[:,(sample_number-self.buffer_n0)-int(F*ms*basestart):(sample_number-self.buffer_n0)-int(F*ms*baseend)],axis=1)
+        #steady=np.std(self.buffer[(sample_number-self.buffer_n0)+int(F*ms*steadystart):(sample_number-no)+int(F*ms*steadyend)],axis=1)
+        #meanbase=oldmeanb+(base-oldmeanb)/numtrials
+        #meansteady=oldmeans+(steady-oldmeans)/numtrials
+        #diff=(meansteady-meanbase)/meanbase
+        #full=np.zeros((384,1))
+        #full[start::skip]=diff
+        #oldmeanb=meanbase
+        #oldmeans=meansteady
     def listen(self):
         """Communication function."""
         
