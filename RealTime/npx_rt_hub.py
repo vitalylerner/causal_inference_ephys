@@ -79,13 +79,13 @@ class npx_rt_hub():
     F=30000
     ms=10**-3
     #ms before/after to take baseline/steadystate
-    self.basestart=2500
-    self.baseend=500
-    self.steadystart=500
-    self.steadyend=3000
-    self.numtrials=0
-    self.oldmeanb=0
-    self.oldmeans=0
+    basestart=2500
+    baseend=500
+    steadystart=500
+    steadyend=3000
+    numtrials=0
+    oldmeanb=0
+    oldmeans=0
 
     
     def __init__(self):
