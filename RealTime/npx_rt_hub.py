@@ -9,6 +9,8 @@ from npx_rt import npx_rt_globals
 import numpy as np
 from datetime import datetime
 import shelve
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtCore
 
 main_run=True
 
@@ -144,18 +146,24 @@ class npx_rt_hub():
         self.report['buffer_cursor']=self.buffer_cursor
         #print ('dbg127',self.buffer_cursor,n0,nsmp)
     #def std(self):
+     #get start and skip input
         #infile=shelve.open('C:/npx_tempo/RealTime/myfile')
         #start=infile["start"]
         #skip=infile["skip"]
+     #take running std
         #numtrials+=1
-        #sample_number=self.pos['nidaq']['flash']
+        #sample_number=self.pos['npx']['sync']
         #base=np.std(self.buffer[:,(sample_number-self.buffer_n0)-int(F*ms*basestart):(sample_number-self.buffer_n0)-int(F*ms*baseend)],axis=1)
         #steady=np.std(self.buffer[(sample_number-self.buffer_n0)+int(F*ms*steadystart):(sample_number-no)+int(F*ms*steadyend)],axis=1)
         #meanbase=oldmeanb+(base-oldmeanb)/numtrials
         #meansteady=oldmeans+(steady-oldmeans)/numtrials
         #diff=(meansteady-meanbase)/meanbase
+    #format for graphing
         #full=np.zeros((384,1))
         #full[start::skip]=diff
+        #even=full[::2,:]
+        #odd=full[1::2,:]
+    #update means
         #oldmeanb=meanbase
         #oldmeans=meansteady
     def listen(self):
